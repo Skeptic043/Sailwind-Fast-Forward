@@ -8,7 +8,7 @@ The check executable covers speed cycling and ownership, activity limits, modele
 
 Packaging verifies an explicit allowlist, file hashes, metadata, version consistency and icon dimensions. A passing package check is not an actual r2modman import or an in-game run of the final versioned DLL.
 
-The 1.0.0 release build passed with zero warnings/errors and all 155 checks passing. The release ZIP and source ZIP passed metadata, icon and per-entry hash validation.
+The 1.0.0 release build passed with zero warnings/errors and all 155 checks passing. The release ZIP and source ZIP passed metadata, icon and per-entry hash validation. A fresh extraction of the source ZIP also built, passed all 155 checks and produced verified packages. Decompiled release gameplay matched the tested 0.3.0 DLL after excluding version metadata.
 
 ## Player and log evidence
 

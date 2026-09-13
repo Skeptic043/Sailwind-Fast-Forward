@@ -8,7 +8,9 @@ Press **F7** to cycle **1x → 2x → 4x → 1x** with the default settings. A s
 
 **BepInEx 5 is required.** If your r2modman profile already has BepInExPack, use that installation.
 
-With Sailwind closed, extract the release ZIP and copy its `plugins/SailwindFastForward` folder into your profile's `BepInEx/plugins` folder. In r2modman, **Settings → Browse profile folder** opens the right location. Launch using **Start modded**.
+Once listed on Thunderstore, install **Sailwind Fast Forward** through r2modman and launch with **Start modded**. BepInExPack is installed automatically as a dependency.
+
+For manual installation with Sailwind closed, extract the release ZIP and copy its `plugins/SailwindFastForward` folder into your profile's `BepInEx/plugins` folder. In r2modman, **Settings → Browse profile folder** opens the right location. Launch using **Start modded**.
 
 To update an earlier test build, replace its `SailwindFastForward.dll`; keep only one copy of the plugin. Existing configuration carries over. To uninstall, remove the plugin folder with the game closed. The mod adds no save fields; gameplay progress made during fast-forward saves normally.
 
@@ -42,4 +44,4 @@ Higher speeds ask the game to do more work per real second. Choose a maximum tha
 
 Visit the [source repository](https://github.com/Skeptic043/Sailwind-Fast-Forward), [build instructions](https://github.com/Skeptic043/Sailwind-Fast-Forward/blob/main/docs/BUILDING.md) and [validation notes](https://github.com/Skeptic043/Sailwind-Fast-Forward/blob/main/docs/RELEASE_REVIEW.md). When [reporting a problem](https://github.com/Skeptic043/Sailwind-Fast-Forward/issues), include the game/mod versions, what you were doing, your configuration and the relevant `BepInEx/LogOutput.log` excerpt.
 
-Copyright 2026 skeptic043. Released under the [MIT License](LICENSE).
+Copyright 2026 skeptic043. Released under the [MIT License](https://github.com/Skeptic043/Sailwind-Fast-Forward/blob/main/LICENSE).
