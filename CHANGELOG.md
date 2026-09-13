@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- Added `CancelOnAutosave`, off by default. Fast-forward now continues through timer-triggered autosaves unless this setting is enabled.
+- Updated the README with r2modman, Thunderstore Mod Manager and manual installation instructions, plus clearer controls and configuration guidance.
+
 ## 1.0.0
 
 Initial release.

@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
@@ -8,16 +9,18 @@ using UnityEngine.SceneManagement;
 
 namespace SailwindFastForward
 {
-    [BepInPlugin(Id, "Sailwind Fast Forward", "1.0.0")]
+    [BepInPlugin(Id, "Sailwind Fast Forward", "1.0.1")]
     [BepInProcess("Sailwind.exe")]
     public sealed class Plugin : BaseUnityPlugin
     {
         internal const string Id = "local.sailwind.fastforward";
         private readonly SpeedOwnership speed = new SpeedOwnership();
+        private readonly AutosaveState autosave = new AutosaveState();
         private readonly BackgroundExecution background = new BackgroundExecution(
             () => Application.runInBackground, value => Application.runInBackground = value);
         private ConfigEntry<KeyboardShortcut> hotkey;
         private ConfigEntry<bool> showIndicator;
+        private ConfigEntry<bool> cancelOnAutosave;
         private ConfigEntry<int> maxSpeed;
         private ConfigEntry<int> movementInventoryMaxSpeed;
         private Harmony harmony;
@@ -37,6 +40,8 @@ namespace SailwindFastForward
             movementInventoryMaxSpeed = Config.Bind("Simulation", "MovementInventoryMaxSpeed", 2,
                 new ConfigDescription("Speed limit while moving or viewing inventory. 1 disables fast-forward; 8 allows all speeds.",
                     new AcceptableValueList<int>(1, 2, 4, 8)));
+            cancelOnAutosave = Config.Bind("Simulation", "CancelOnAutosave", false,
+                "Turn off fast-forward when an autosave starts.");
             showIndicator = Config.Bind("Display", "ShowIndicator", true,
                 "Show the current fast-forward speed.");
             try
@@ -52,6 +57,9 @@ namespace SailwindFastForward
                 PatchBoundary(typeof(SaveLoadManager), "LoadGame", new[] { typeof(int) });
                 // Also covers pass-out/recovery, which calls FallAsleep before its fade.
                 PatchBoundary(typeof(Sleep), "FallAsleep", Type.EmptyTypes);
+                var saveUpdate = AccessTools.DeclaredMethod(typeof(SaveLoadManager), "Update", Type.EmptyTypes);
+                if (saveUpdate == null) throw new MissingMethodException("SaveLoadManager.Update");
+                harmony.Patch(saveUpdate, transpiler: new HarmonyMethod(typeof(Plugin), nameof(MarkAutosave)));
                 SceneManager.activeSceneChanged += OnActiveSceneChanged;
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 ready = true;
@@ -75,8 +83,34 @@ namespace SailwindFastForward
 
         private static void BeforeBoundary(MethodBase __originalMethod)
         {
-            if (instance != null)
-                instance.Cancel($"{__originalMethod.DeclaringType.Name}.{__originalMethod.Name}");
+            if (instance == null) return;
+            if (__originalMethod.DeclaringType == typeof(SaveLoadManager) &&
+                __originalMethod.Name == "SaveGame" && !instance.autosave.ShouldCancelSave) return;
+            instance.Cancel($"{__originalMethod.DeclaringType.Name}.{__originalMethod.Name}");
+        }
+
+        private static IEnumerable<CodeInstruction> MarkAutosave(IEnumerable<CodeInstruction> instructions) =>
+            AutosavePatch.Rewrite(instructions,
+                AccessTools.DeclaredMethod(typeof(SaveLoadManager), "SaveGame", new[] { typeof(bool) }),
+                AccessTools.DeclaredMethod(typeof(Plugin), nameof(SaveAutosave)));
+
+        private static void SaveAutosave(SaveLoadManager manager, bool compressed)
+        {
+            var plugin = instance;
+            if (plugin == null || !plugin.ready)
+            {
+                manager.SaveGame(compressed);
+                return;
+            }
+            bool alreadyBusy = (bool)plugin.saveBusy.GetValue(manager);
+            plugin.autosave.Begin(!plugin.cancelOnAutosave.Value && plugin.speed.Active && !alreadyBusy);
+            try { manager.SaveGame(compressed); }
+            catch
+            {
+                plugin.autosave.Reset();
+                throw;
+            }
+            finally { plugin.autosave.End((bool)plugin.saveBusy.GetValue(manager)); }
         }
 
         private string BlockReason()
@@ -92,7 +126,8 @@ namespace SailwindFastForward
             if (GameState.currentShipyard) return "shipyard";
             if (EconomyUI.instance && EconomyUI.instance.uiActive) return "economy menu";
             if (GameState.inCursorMenu && !InventoryOpen()) return "cursor menu";
-            if (!SaveLoadManager.instance || (bool)saveBusy.GetValue(SaveLoadManager.instance)) return "save unavailable/busy";
+            if (!SaveLoadManager.instance) return "save unavailable";
+            if (autosave.BlocksBusySave((bool)saveBusy.GetValue(SaveLoadManager.instance))) return "save busy";
             return null;
         }
 
@@ -175,6 +210,7 @@ namespace SailwindFastForward
 
         private void Cancel(string reason)
         {
+            autosave.Reset();
             if (!speed.Active) return;
             float previous = Time.timeScale;
             if (speed.Release(previous)) Time.timeScale = 1f;

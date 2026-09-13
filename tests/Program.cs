@@ -1,4 +1,7 @@
 using System;
+using System.Linq;
+using System.Reflection.Emit;
+using HarmonyLib;
 using System.Collections.Generic;
 using SailwindFastForward;
 using UnityEngine;
@@ -159,4 +162,107 @@ Check(activityCycle.TryCycle(1f, 2) && activityCycle.SelectedSpeed == 2f, "F7 wh
 Check(activityCycle.TryCycle(2f, 8) && activityCycle.SelectedSpeed == 4f, "higher speed requires explicit cycle after activity ends");
 foreach (int invalidCap in new[] { -1, 0, 3, 16 })
     Check(!activityCycle.TryLimit(4f, invalidCap), $"reject invalid activity cap {invalidCap}");
-Console.WriteLine($"{checks} ownership/input checks passed. Input states are simulated; live retest remains required.");
+// Model the real save's synchronous start and next-frame completion.
+foreach (int selected in new[] { 2, 4, 8 })
+{
+    var savingSpeed = new SpeedOwnership();
+    while (savingSpeed.SelectedSpeed < selected) savingSpeed.TryCycle(savingSpeed.SelectedSpeed, 8);
+    var saving = new AutosaveState();
+    saving.Begin(keepFastForward: true); // CancelOnAutosave=false, FF active, not already busy
+    Check(!saving.ShouldCancelSave, $"default autosave preserves owned {selected}x at save prefix");
+    saving.End(busy: true); // DoSaveGame reaches WaitForEndOfFrame before SaveGame returns
+    Check(!saving.BlocksBusySave(true) && savingSpeed.SelectedSpeed == selected,
+        $"autosave busy period preserves {selected}x on the next Update");
+    Check(!saving.BlocksBusySave(false) && savingSpeed.SelectedSpeed == selected,
+        $"autosave completion keeps {selected}x without restoring or reacquiring speed");
+    Check(saving.BlocksBusySave(true), "later unrelated busy state is not exempt");
+
+    saving.Begin(keepFastForward: false); // CancelOnAutosave=true
+    Check(saving.ShouldCancelSave && savingSpeed.Release(selected),
+        $"enabled autosave cancellation releases owned {selected}x before save starts");
+    saving.Reset();
+    saving.End(busy: true);
+    Check(saving.BlocksBusySave(true) && !savingSpeed.Active, "cancelled autosave stays at normal speed");
+}
+var autosaveState = new AutosaveState();
+autosaveState.Begin(true);
+autosaveState.End(true);
+Check(autosaveState.ShouldCancelSave, "manual/bed/quit save after autosave still cancels");
+autosaveState.Reset();
+Check(autosaveState.BlocksBusySave(true), "manual cancellation clears autosave busy permission");
+autosaveState.Begin(true);
+autosaveState.End(false);
+Check(autosaveState.BlocksBusySave(true), "rejected autosave cannot exempt a later save");
+autosaveState.Begin(false);
+Check(autosaveState.ShouldCancelSave, "autosave at normal speed cannot acquire acceleration");
+autosaveState.End(true);
+Check(autosaveState.BlocksBusySave(true), "activation stays blocked during an unowned save");
+autosaveState.Begin(true);
+autosaveState.Reset(); // save threw, or pause/bed/load/disable interrupted it
+autosaveState.End(true);
+Check(autosaveState.BlocksBusySave(true), "error or gameplay boundary clears permission even before save returns");
+foreach (float native in new[] { 0f, 1f, 16f })
+{
+    var interrupted = new SpeedOwnership();
+    interrupted.TryCycle(1f, 8);
+    autosaveState.Begin(true);
+    autosaveState.End(true);
+    Check(!interrupted.Release(native), $"autosave continuation never overwrites external scale {native}");
+    autosaveState.Reset();
+    Check(autosaveState.BlocksBusySave(true), "external scale change revokes autosave permission");
+}
+
+// Read installed game IL without executing Unity; verify the exact patched call site.
+var saveMethod = typeof(SaveLoadManager).GetMethod("SaveGame", new[] { typeof(bool) });
+var replacement = typeof(SaveCallFixture).GetMethod(nameof(SaveCallFixture.Autosave));
+// Cecil reads game IL without invoking Harmony's Mono-specific runtime helpers on .NET 10.
+using var gameAssembly = Mono.Cecil.AssemblyDefinition.ReadAssembly(typeof(SaveLoadManager).Assembly.Location);
+var updateMethod = gameAssembly.MainModule.Types.Single(type => type.FullName == "SaveLoadManager")
+    .Methods.Single(method => method.Name == "Update");
+var opcodes = typeof(OpCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+    .Where(field => field.FieldType == typeof(OpCode)).Select(field => (OpCode)field.GetValue(null))
+    .ToDictionary(opcode => opcode.Value);
+var originalCode = updateMethod.Body.Instructions.Select(instruction =>
+{
+    object operand = instruction.Operand;
+    if (operand is Mono.Cecil.MethodReference method && method.FullName == "System.Void SaveLoadManager::SaveGame(System.Boolean)")
+        operand = saveMethod;
+    return new CodeInstruction(opcodes[instruction.OpCode.Value], operand);
+}).ToList();
+var rewritten = AutosavePatch.Rewrite(originalCode, saveMethod, replacement).ToList();
+var originalCalls = originalCode.Select((instruction, index) => (instruction, index))
+    .Where(item => item.instruction.Calls(saveMethod)).Select(item => item.index).ToArray();
+Check(originalCalls.Length == 3, "installed game has two explicit saves followed by timer autosave");
+Check(originalCalls.Take(2).All(index => rewritten[index].Calls(saveMethod)),
+    "installed game's two explicit save calls are untouched");
+Check(rewritten[originalCalls[2]].Calls(replacement) && rewritten[originalCalls[2]].opcode == OpCodes.Call,
+    "only installed game's timer autosave is routed through the wrapper");
+Check(originalCode.Count == rewritten.Count && originalCode[originalCalls[2]].Calls(saveMethod),
+    "rewriting preserves instruction count and leaves original IL unchanged");
+Check(originalCode.Select((instruction, index) => (instruction, index)).All(item =>
+    item.index == originalCalls[2] || (item.instruction.opcode == rewritten[item.index].opcode &&
+    Equals(item.instruction.operand, rewritten[item.index].operand))), "all other installed game instructions remain unchanged");
+var sample = originalCode.Select(instruction => new CodeInstruction(instruction)).ToList();
+var label = new DynamicMethod("labels", typeof(void), Type.EmptyTypes).GetILGenerator().DefineLabel();
+sample[originalCalls[2]].labels.Add(label);
+sample[originalCalls[2]].blocks.Add(new ExceptionBlock(ExceptionBlockType.BeginExceptionBlock));
+var labeled = AutosavePatch.Rewrite(sample, saveMethod, replacement).ToList();
+Check(labeled[originalCalls[2]].labels.Contains(label) && labeled[originalCalls[2]].blocks.Count == 1,
+    "autosave replacement retains branch labels and exception boundaries");
+foreach (int count in new[] { 0, 1, 2, 4 })
+{
+    bool rejected = false;
+    try
+    {
+        AutosavePatch.Rewrite(Enumerable.Range(0, count).Select(_ => new CodeInstruction(OpCodes.Callvirt, saveMethod)),
+            saveMethod, replacement).ToList();
+    }
+    catch (InvalidOperationException) { rejected = true; }
+    Check(rejected, $"unexpected {count}-save layout is rejected instead of patching another save");
+}
+Console.WriteLine($"{checks} ownership/input/autosave checks passed. Game IL is inspected; Unity gameplay is not executed.");
+
+static class SaveCallFixture
+{
+    public static void Autosave(SaveLoadManager manager, bool compressed) { }
+}

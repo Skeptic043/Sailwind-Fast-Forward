@@ -1,3 +1,13 @@
+# 1.0.1 validation notes
+
+The README now covers r2modman, Thunderstore Mod Manager and manual installation. `CancelOnAutosave` defaults to `false`, preserving the selected speed during timer-triggered autosaves; `true` cancels it. Pause, bed, load and explicit save boundaries retain cancellation.
+
+Sailwind's `SaveGame(bool)` argument selects compression, not the save type. A Harmony transpiler wraps only the timer autosave call in `SaveLoadManager.Update`. The two explicit-save calls remain unchanged. The save's busy period is exempt only when an autosave began while fast-forward was active and cancellation was disabled. Completion, cancellation and error paths clear that permission.
+
+The build passed with zero warnings/errors and all 195 checks passing. The checks cover both autosave choices at 2x/4x/8x, the across-frame busy period, rejected saves, manual interruption and external pause/sleep scales. Cecil reads the installed game IL to verify that only the third (timer) save call is replaced; the rewrite retains labels and exception boundaries and rejects unexpected save-call counts. These checks do not run Unity or establish live Harmony execution.
+
+The 1.0.1 play-test log confirmed the default `CancelOnAutosave = false` path: a compressed save completed while fast-forward was at 2x, and the next speed change was the pause menu restoring 1x. The installed DLL matched the candidate and no Fast Forward plugin errors were logged. The player also confirmed that `CancelOnAutosave = true` disables fast-forward on autosave. Both autosave settings have now passed live acceptance.
+
 # 1.0.0 validation notes
 
 The release retains the gameplay implementation accepted in test build 0.3.0. Release preparation changes version metadata, documentation, licensing, the icon and packaging.

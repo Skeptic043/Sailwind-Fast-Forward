@@ -9,7 +9,7 @@ $manifest = Get-Content -LiteralPath "$PSScriptRoot\manifest.json" -Raw | Conver
 if ($version -ne $manifest.version_number) { throw 'Project and manifest versions differ.' }
 dotnet build "$PSScriptRoot\src\SailwindFastForward.csproj" -c Release "-p:GameDir=$GameDir" "-p:BepInExCore=$BepInExCore" -p:NuGetAudit=false
 if ($LASTEXITCODE -ne 0) { throw 'Plugin build failed.' }
-dotnet run --project "$PSScriptRoot\tests\OwnershipChecks.csproj" -c Release "-p:GameDir=$GameDir" -p:NuGetAudit=false
+dotnet run --project "$PSScriptRoot\tests\OwnershipChecks.csproj" -c Release "-p:GameDir=$GameDir" "-p:BepInExCore=$BepInExCore" -p:NuGetAudit=false
 if ($LASTEXITCODE -ne 0) { throw 'Ownership checks failed.' }
 $dll = "$PSScriptRoot\src\bin\Release\netstandard2.0\SailwindFastForward.dll"
 if ([Reflection.AssemblyName]::GetAssemblyName($dll).Version.ToString(3) -ne $version) {

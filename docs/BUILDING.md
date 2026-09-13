@@ -2,7 +2,7 @@
 
 Requires Windows PowerShell, the .NET 10 SDK (for the check executable), an installed Mono version of Sailwind and BepInEx 5. The plugin itself targets .NET Standard 2.0.
 
-Pass your game installation directory and the BepInEx `core` directory containing `BepInEx.dll` and `0Harmony.dll`:
+Pass your game installation directory and the BepInEx `core` directory containing `BepInEx.dll`, `0Harmony.dll` and `Mono.Cecil.dll` (used by the game IL checks):
 
 ```powershell
 ./Build.ps1 -GameDir 'D:\Games\Sailwind' -BepInExCore 'D:\ModProfile\BepInEx\core'

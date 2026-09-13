@@ -1,6 +1,6 @@
 {
   "name": "Sailwind_Fast_Forward",
-  "version_number": "1.0.0",
+  "version_number": "1.0.1",
   "website_url": "https://github.com/Skeptic043/Sailwind-Fast-Forward",
   "description": "Fast-forward long voyages at 2x, 4x or 8x, with configurable movement and inventory speed limits. Your ship, weather and survival needs keep running.",
   "dependencies": [
