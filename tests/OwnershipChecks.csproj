@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GameDir Condition="'$(GameDir)' == ''">C:\Steam Games\steamapps\common\Sailwind</GameDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\src\SpeedOwnership.cs" Link="SpeedOwnership.cs" />
+    <Compile Include="..\src\HotkeyInput.cs" Link="HotkeyInput.cs" />
+    <Compile Include="..\src\BackgroundExecution.cs" Link="BackgroundExecution.cs" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(GameDir)\Sailwind_Data\Managed\UnityEngine.CoreModule.dll" />
+  </ItemGroup>
+</Project>

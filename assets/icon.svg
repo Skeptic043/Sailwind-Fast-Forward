@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Sailwind Fast Forward</title>
+  <rect width="256" height="256" fill="#122433"/>
+  <g fill="none" stroke="#F4F7F9" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M66 76 L118 128 L66 180"/>
+    <path d="M138 76 L190 128 L138 180"/>
+  </g>
+</svg>

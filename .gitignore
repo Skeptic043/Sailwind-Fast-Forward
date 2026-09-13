@@ -1,0 +1,5 @@
+.local/
+**/bin/
+**/obj/
+artifacts/
+docs/INSPECTION.md
