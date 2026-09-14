@@ -6,6 +6,14 @@ namespace SailwindFastForward
         internal float SelectedSpeed { get; private set; } = 1f;
         internal bool Active => SelectedSpeed > 1f;
 
+        internal bool TrySelect(float current, int requested)
+        {
+            if ((requested != 2 && requested != 4 && requested != 8) || current != SelectedSpeed)
+                return false;
+            SelectedSpeed = requested;
+            return true;
+        }
+
         internal bool TryCycle(float current, int maximum)
         {
             if ((maximum != 2 && maximum != 4 && maximum != 8) || current != SelectedSpeed)

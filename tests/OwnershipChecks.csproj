@@ -9,10 +9,16 @@
   <ItemGroup>
     <Compile Include="..\src\SpeedOwnership.cs" Link="SpeedOwnership.cs" />
     <Compile Include="..\src\HotkeyInput.cs" Link="HotkeyInput.cs" />
+    <Compile Include="..\src\HoldInput.cs" Link="HoldInput.cs" />
+    <Compile Include="..\src\GameCompatibility.cs" Link="GameCompatibility.cs" />
+    <Compile Include="..\src\SaveErrorBoundary.cs" Link="SaveErrorBoundary.cs" />
+    <Compile Include="..\src\PluginSettings.cs" Link="PluginSettings.cs" />
     <Compile Include="..\src\BackgroundExecution.cs" Link="BackgroundExecution.cs" />
     <Compile Include="..\src\AutosaveState.cs" Link="AutosaveState.cs" />
     <Compile Include="..\src\AutosavePatch.cs" Link="AutosavePatch.cs" />
     <Reference Include="Mono.Cecil" HintPath="$(BepInExCore)\Mono.Cecil.dll" />
+    <Reference Include="BepInEx" HintPath="$(BepInExCore)\BepInEx.dll" />
+    <Reference Include="MonoMod.Utils" HintPath="$(BepInExCore)\MonoMod.Utils.dll" />
     <Reference Include="0Harmony" HintPath="$(BepInExCore)\0Harmony.dll" />
     <Reference Include="Assembly-CSharp" HintPath="$(GameDir)\Sailwind_Data\Managed\Assembly-CSharp.dll" />
     <Reference Include="UnityEngine" HintPath="$(GameDir)\Sailwind_Data\Managed\UnityEngine.dll" />

@@ -3,33 +3,41 @@ namespace SailwindFastForward
     // Permit only the busy period belonging to a timer-triggered autosave.
     internal sealed class AutosaveState
     {
-        private bool inAutosave;
-        private bool continueWhileBusy;
+        private enum Phase { Idle, AwaitingPrefix, Saving, WaitingForCompletion }
+        private Phase phase;
 
-        internal bool ShouldCancelSave => !inAutosave || !continueWhileBusy;
+        // The wrapper grants exactly one synchronous prefix exemption.
+        // A manual/nested save consumes no reusable permission and fails closed.
+        internal bool TryEnterSave()
+        {
+            if (phase == Phase.AwaitingPrefix)
+            {
+                phase = Phase.Saving;
+                return true;
+            }
+            Reset();
+            return false;
+        }
 
         internal void Begin(bool keepFastForward)
         {
-            inAutosave = true;
-            continueWhileBusy = keepFastForward;
+            phase = keepFastForward && phase == Phase.Idle ? Phase.AwaitingPrefix : Phase.Idle;
         }
 
         internal void End(bool busy)
         {
-            inAutosave = false;
-            continueWhileBusy &= busy;
+            phase = phase == Phase.Saving && busy ? Phase.WaitingForCompletion : Phase.Idle;
         }
 
-        internal bool BlocksBusySave(bool busy)
+        internal bool BlocksBusySave(bool busy, bool cancelOnAutosave = false)
         {
-            if (!busy) continueWhileBusy = false;
-            return busy && !continueWhileBusy;
+            if (!busy || cancelOnAutosave) Reset();
+            return busy && phase != Phase.WaitingForCompletion;
         }
 
         internal void Reset()
         {
-            inAutosave = false;
-            continueWhileBusy = false;
+            phase = Phase.Idle;
         }
     }
 }

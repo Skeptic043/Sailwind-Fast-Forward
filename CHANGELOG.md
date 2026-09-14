@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+- Added **F8** to return directly to 1x from any fast-forward speed.
+- Added **hold F9** for fast-forward, with a configurable hold speed of 2x, 4x or 8x. The default is 4x. Existing speed limits still apply, and releasing the key returns to 1x.
+- All three shortcuts support modifiers. Configuration help now uses consistent wording and examples. Leave a shortcut value blank to disable it.
+- Existing custom settings are preserved. A new shortcut starts unassigned if its default key is already used by an existing shortcut.
+- Reset takes priority over hold and cycling. After cancellation, hold requires release and a fresh press before accelerating again.
+- Autosaves retain the existing configurable behavior. Save-coroutine errors now cancel fast-forward without changing the game's save state or hiding the error.
+- Added compatibility checks for the inspected Sailwind save path. An uninspected game update disables FF pending compatibility review.
+
 ## 1.0.1
 
 - Added `CancelOnAutosave`, off by default. Fast-forward now continues through timer-triggered autosaves unless this setting is enabled.

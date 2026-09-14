@@ -2,27 +2,26 @@ using System;
 using System.Reflection;
 using System.Collections.Generic;
 using BepInEx;
-using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace SailwindFastForward
 {
-    [BepInPlugin(Id, "Sailwind Fast Forward", "1.0.1")]
+    [BepInPlugin(Id, "Sailwind Fast Forward", "1.1.0")]
     [BepInProcess("Sailwind.exe")]
     public sealed class Plugin : BaseUnityPlugin
     {
         internal const string Id = "local.sailwind.fastforward";
         private readonly SpeedOwnership speed = new SpeedOwnership();
+        private readonly HoldInput holdInput = new HoldInput();
         private readonly AutosaveState autosave = new AutosaveState();
         private readonly BackgroundExecution background = new BackgroundExecution(
             () => Application.runInBackground, value => Application.runInBackground = value);
-        private ConfigEntry<KeyboardShortcut> hotkey;
-        private ConfigEntry<bool> showIndicator;
-        private ConfigEntry<bool> cancelOnAutosave;
-        private ConfigEntry<int> maxSpeed;
-        private ConfigEntry<int> movementInventoryMaxSpeed;
+        private PluginSettings settings;
+        private Action resetHotkey;
+        private Action<string> cancelInput;
+        private Action saveError;
         private Harmony harmony;
         private FieldInfo saveBusy;
         private bool ready;
@@ -32,20 +31,13 @@ namespace SailwindFastForward
         private void Awake()
         {
             instance = this;
-            hotkey = Config.Bind("Controls", "Hotkey", new KeyboardShortcut(KeyCode.F7),
-                "Cycle simulation speed.");
-            maxSpeed = Config.Bind("Simulation", "MaxSpeed", 4,
-                new ConfigDescription("Maximum fast-forward speed.",
-                    new AcceptableValueList<int>(2, 4, 8)));
-            movementInventoryMaxSpeed = Config.Bind("Simulation", "MovementInventoryMaxSpeed", 2,
-                new ConfigDescription("Speed limit while moving or viewing inventory. 1 disables fast-forward; 8 allows all speeds.",
-                    new AcceptableValueList<int>(1, 2, 4, 8)));
-            cancelOnAutosave = Config.Bind("Simulation", "CancelOnAutosave", false,
-                "Turn off fast-forward when an autosave starts.");
-            showIndicator = Config.Bind("Display", "ShowIndicator", true,
-                "Show the current fast-forward speed.");
+            resetHotkey = () => Cancel("reset hotkey");
+            cancelInput = Cancel;
+            saveError = () => Cancel("save error");
+            settings = new PluginSettings(Config);
             try
             {
+                GameCompatibility.RequireSupported(typeof(SaveLoadManager).Assembly.Location);
                 saveBusy = AccessTools.Field(typeof(SaveLoadManager), "busy");
                 if (saveBusy == null || saveBusy.FieldType != typeof(bool))
                     throw new MissingFieldException("SaveLoadManager.busy");
@@ -60,10 +52,15 @@ namespace SailwindFastForward
                 var saveUpdate = AccessTools.DeclaredMethod(typeof(SaveLoadManager), "Update", Type.EmptyTypes);
                 if (saveUpdate == null) throw new MissingMethodException("SaveLoadManager.Update");
                 harmony.Patch(saveUpdate, transpiler: new HarmonyMethod(typeof(Plugin), nameof(MarkAutosave)));
+                var iterator = typeof(SaveLoadManager).GetNestedType("<DoSaveGame>d__27", BindingFlags.NonPublic);
+                var moveNext = iterator == null ? null : AccessTools.DeclaredMethod(iterator, "MoveNext", Type.EmptyTypes);
+                if (moveNext == null || moveNext.ReturnType != typeof(bool))
+                    throw new MissingMethodException("SaveLoadManager.<DoSaveGame>d__27.MoveNext");
+                harmony.Patch(moveNext, finalizer: new HarmonyMethod(typeof(Plugin), nameof(AfterSaveCoroutine)));
                 SceneManager.activeSceneChanged += OnActiveSceneChanged;
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 ready = true;
-                Logger.LogInfo($"Ready. {hotkey.Value} to cycle game speed.");
+                Logger.LogInfo($"Ready. {settings.Hotkey.Value} to cycle; {settings.ResetHotkey.Value} to return to 1x; hold {settings.HoldHotkey.Value} for {settings.HoldSpeed.Value}x within speed limits.");
             }
             catch (Exception error)
             {
@@ -85,7 +82,7 @@ namespace SailwindFastForward
         {
             if (instance == null) return;
             if (__originalMethod.DeclaringType == typeof(SaveLoadManager) &&
-                __originalMethod.Name == "SaveGame" && !instance.autosave.ShouldCancelSave) return;
+                __originalMethod.Name == "SaveGame" && instance.autosave.TryEnterSave()) return;
             instance.Cancel($"{__originalMethod.DeclaringType.Name}.{__originalMethod.Name}");
         }
 
@@ -93,6 +90,9 @@ namespace SailwindFastForward
             AutosavePatch.Rewrite(instructions,
                 AccessTools.DeclaredMethod(typeof(SaveLoadManager), "SaveGame", new[] { typeof(bool) }),
                 AccessTools.DeclaredMethod(typeof(Plugin), nameof(SaveAutosave)));
+
+        private static Exception AfterSaveCoroutine(Exception __exception) =>
+            SaveErrorBoundary.Handle(__exception, instance?.saveError);
 
         private static void SaveAutosave(SaveLoadManager manager, bool compressed)
         {
@@ -103,11 +103,11 @@ namespace SailwindFastForward
                 return;
             }
             bool alreadyBusy = (bool)plugin.saveBusy.GetValue(manager);
-            plugin.autosave.Begin(!plugin.cancelOnAutosave.Value && plugin.speed.Active && !alreadyBusy);
+            plugin.autosave.Begin(!plugin.settings.CancelOnAutosave.Value && plugin.speed.Active && !alreadyBusy);
             try { manager.SaveGame(compressed); }
-            catch
+            catch (Exception error)
             {
-                plugin.autosave.Reset();
+                SaveErrorBoundary.Handle(error, plugin.saveError);
                 throw;
             }
             finally { plugin.autosave.End((bool)plugin.saveBusy.GetValue(manager)); }
@@ -127,7 +127,7 @@ namespace SailwindFastForward
             if (EconomyUI.instance && EconomyUI.instance.uiActive) return "economy menu";
             if (GameState.inCursorMenu && !InventoryOpen()) return "cursor menu";
             if (!SaveLoadManager.instance) return "save unavailable";
-            if (autosave.BlocksBusySave((bool)saveBusy.GetValue(SaveLoadManager.instance))) return "save busy";
+            if (autosave.BlocksBusySave((bool)saveBusy.GetValue(SaveLoadManager.instance), settings.CancelOnAutosave.Value)) return "save busy";
             return null;
         }
 
@@ -154,41 +154,21 @@ namespace SailwindFastForward
             try
             {
                 string reason = BlockReason();
-                if (reason != null)
-                {
-                    Cancel(reason);
-                    return;
-                }
-                if (speed.Active && Time.timeScale != speed.SelectedSpeed)
-                {
-                    Cancel("timescale changed externally");
-                    return;
-                }
-                if (speed.SelectedSpeed > maxSpeed.Value)
-                {
-                    Cancel("configured maximum lowered");
-                    return;
-                }
-                bool inventory = InventoryOpen();
-                bool moving = !inventory && MovementRequested();
+                bool inventory = reason == null && InventoryOpen();
+                bool moving = reason == null && !inventory && MovementRequested();
                 int effectiveMaximum = (inventory || moving)
-                    ? Math.Min(maxSpeed.Value, movementInventoryMaxSpeed.Value) : maxSpeed.Value;
+                    ? Math.Min(settings.MaxSpeed.Value, settings.MovementInventoryMaxSpeed.Value) : settings.MaxSpeed.Value;
                 float previous = Time.timeScale;
-                if (speed.TryLimit(previous, effectiveMaximum))
-                {
+                var action = holdInput.Dispatch(speed, previous, settings.MaxSpeed.Value, settings.MovementInventoryMaxSpeed.Value,
+                    effectiveMaximum, Application.isFocused, reason, settings.Hotkey.Value, settings.ResetHotkey.Value,
+                    settings.HoldHotkey.Value, settings.HoldSpeed.Value, Input.GetKeyDown, Input.GetKey, cancelInput, resetHotkey);
+                if (action == SpeedInputAction.Limit)
                     ApplySelectedSpeed(previous, inventory ? "inventory speed limit" : "movement speed limit");
-                    return;
-                }
-                // Background simulation continues, but keys in another app must not cycle speed.
-                if (!Application.isFocused) return;
-                var shortcut = hotkey.Value;
-                if (!HotkeyInput.IsDown(shortcut.MainKey, shortcut.Modifiers, Input.GetKeyDown, Input.GetKey)) return;
-                if (effectiveMaximum == 1) return;
-                if (speed.TryCycle(previous, effectiveMaximum))
-                {
+                else if (action == SpeedInputAction.Cycle)
                     ApplySelectedSpeed(previous, "hotkey");
-                }
-                else
+                else if (action == SpeedInputAction.Hold)
+                    ApplySelectedSpeed(previous, "hold hotkey");
+                else if (action == SpeedInputAction.Unavailable)
                     Logger.LogInfo($"Fast-forward unavailable at native/external scale {Time.timeScale}.");
             }
             catch (Exception error)
@@ -210,6 +190,7 @@ namespace SailwindFastForward
 
         private void Cancel(string reason)
         {
+            holdInput.Invalidate();
             autosave.Reset();
             if (!speed.Active) return;
             float previous = Time.timeScale;
@@ -229,7 +210,7 @@ namespace SailwindFastForward
 
         private void OnGUI()
         {
-            if (!ready || !speed.Active || Time.timeScale != speed.SelectedSpeed || !showIndicator.Value) return;
+            if (!ready || !speed.Active || Time.timeScale != speed.SelectedSpeed || !settings.ShowIndicator.Value) return;
             if (indicatorStyle == null)
                 indicatorStyle = new GUIStyle(GUI.skin.box) { fontSize = 16, alignment = TextAnchor.MiddleCenter };
             GUI.Box(new Rect(Screen.width - 76, 16, 60, 28), $"{speed.SelectedSpeed}\u00d7", indicatorStyle);

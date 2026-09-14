@@ -1,10 +1,60 @@
+# 1.1.0 release validation
+
+## Release decision and live observations
+
+The user confirmed that hold-to-fast-forward works well in the game and that cargo remains intact after loading saves. The inspected latest-session logs also showed the corrected plugin reaching Ready, and the installed DLL hash matched the corrected startup build. These observations support ordinary live use without claiming a complete test matrix or save-integrity proof.
+
+The user approved preparing 1.1.0 for release with the existing automated coverage and ordinary live-play results. Remaining unusual cancellation, error and mod-interaction scenarios are deferred until a report or live occurrence warrants investigation. They are untested limits, not mandatory release blockers. No artificial save failures or additional edge-case play sessions are required for this release decision.
+
+The release ZIP, source ZIP and checksums are prepared locally. The user will publish the mod first. GitHub publication is deferred until the user confirms that step is complete.
+
+## Startup correction after player testing
+
+The player reported that the previous 531-check candidate failed during initialization with `Unexpected SaveLoadManager.Update shape at IL_0006`. The stack trace identifies this mod's AutosavePatch.Rewrite, followed by FF disabling itself. That build did not pass live startup acceptance.
+
+The inspected HarmonyX 2.9.0.0 library expands short branches before invoking transpilers. Our earlier tests reconstructed raw game IL and missed that transformation. A new regression through the actual library's reader, preparation, normalization and transpiler invocation reproduced the exact failure before the fix. The guard now accepts only equivalent short/long branch encodings while retaining condition, destination, member and save-origin checks. Tests reject changed targets and conditions, including ordered versus unordered comparisons.
+
+The corrected candidate passed 543 checks with zero build warnings/errors. The orchestrator and a distinct reviewer independently repeated all 543 checks. Blank shortcut values were tested against real BepInEx config binding and save/reload. They disable the shortcut, although the loader writes them back as `None`. Public config descriptions now explain blank values and omit the awkward default-collision sentences. Local packaging validates eight release entries and 30 source entries.
+
+These checks transform IL in memory without installing a detour or running the Unity player. Later logs confirmed corrected startup, and the user's subsequent play report confirmed hold behavior. The coroutine error handler and unusual cancellation combinations have automated coverage but no dedicated live acceptance. The earlier validation record below explains the original candidate and does not override the reported startup failure or the later live observations.
+
+## Earlier candidate and autosave investigation
+
+The configurable reset shortcut defaults to F8 and returns directly to 1x through the existing cancellation path. HoldHotkey defaults to F9 and requests HoldSpeed (default 4x) within current speed limits. Releasing hold returns to 1x. Reset, focus loss, invalidating configuration changes and gameplay cancellation require release/new press before hold can acquire again. Reset wins simultaneous inputs, then hold, then cycle. New default bindings are disabled if they collide with an existing shortcut. Explicitly saved bindings and existing custom values are preserved.
+
+The relocated repository is `E:\Projects\Unity\Sailwind\FastForward`. Its Git history and all original files were preserved by a SHA256-verified relocation with a retained temporary backup. The Sailwind parent holds game research and workspace instructions. Future mods can have independent sibling repositories.
+
+The installed game investigation found one WaitForEndOfFrame yield before SaveContainer construction. Capture, BinaryFormatter.Serialize, stream close and busy=false then occur without a further coroutine yield. Thus the suspected multi-frame capture skew is unsupported for this input. CancelOnAutosave=false continues already active FF. True cancels it. No speed suspension, saved-speed resume or automatic reacquisition was added. A small explicit autosave state grants one save-prefix exemption and only its associated busy-period continuation. Cancellation clears it.
+
+The inspected input is Assembly-CSharp.dll SHA256 `978A21A680F42C89EBCB3530F9A99EF074960BE6377DAF8E85893134A5E5CE23`, Steam build 24324368. Primary locators: SaveLoadManager.Update, SaveGame(bool), and <DoSaveGame>d__27.MoveNext (yield return IL_0043, container IL_004b, Serialize IL_0702, stream close IL_0709, busy=false IL_0739). The workspace game-research directory retains the complete read-only inspection harness and selected factual map. Independent reproduction matched that map. These are source observations, not a save-integrity guarantee.
+
+Unlike a normal completion, an escaping coroutine exception can bypass busy=false. The candidate's exception-only finalizer cancels FF and pending hold intent on that path while preserving the original exception and leaving vanilla busy/save files alone. The inspected game binary and timer-call context are guarded so uninspected changes require reinspection instead of silently relabeling an explicit save as an autosave. These guards do not certify arbitrary other Harmony patches.
+
+The expanded candidate build passed with zero warnings/errors and 531 checks. Coverage includes 2x/4x/8x hold sessions and multi-frame autosaves, reset/release/policy changes during saves, rejected and nested saves, no reacquisition after cancellation or completion, external speed ownership, late coroutine errors and cleanup errors, custom config persistence, and altered timer-call layouts. The checks exercise production helpers with modeled Unity input/time state. They do not execute the live Unity lifecycle.
+
+The orchestrator independently ran packaging and reproduced all 531 passing checks. The eight-file release ZIP and 29-file source ZIP passed metadata, version, icon, exact inventory and per-entry SHA256 validation. A fresh extraction of the source ZIP built, passed the same 531 checks and produced validated packages using separately supplied game/loader references and cached NuGet dependencies. This establishes source-package completeness. Byte-identical binaries across checkout paths are not claimed.
+
+A distinct reviewer independently inspected the production integration, evidence, tests and package inventory and ran all 531 checks. The review's alt-tab documentation correction was applied: cycle mode continues in the background, while hold mode cancels on focus loss.
+
+Config fixtures run under .NET 10 using the local BepInEx 5.4.23.5 reference assembly and isolated scratch paths. They do not establish config ordering, Harmony finalizer execution or input/lifecycle behavior under Unity's Mono runtime. The game installation was not changed. Historical acceptance below applies to the versions named there.
+
+Deferred scenarios for future issue-driven investigation, not prerequisites for 1.1.0:
+
+- At rest, use hold at 2x/4x/8x, then release and confirm 1x. Test rebind/restart and modifier release. Walking/inventory must still respect the configured cap.
+- Hold through a timer autosave with CancelOnAutosave=false, then release during the busy period if observable. Repeat in cycle mode at 2x/4x/8x. After reset during a save, remain at 1x after completion even if hold stays pressed.
+- With CancelOnAutosave=true, start a timer autosave while accelerated and confirm cancellation with no later reacquisition. Release/press is required to use hold again.
+- While holding, trigger reset, alt-tab, pause/settings, bed/recovery and load/world transition. Cancelled FF must stay off until a fresh intentional activation. Preserve native pause/sleep speed. Check lowering configured limits and any installed mod that changes timeScale.
+- After a completed autosave, reload the disposable save and check position, cargo, needs and game time. Inspect logs for FF/save errors. A controlled coroutine-error/finalizer test is still a separate runtime gap. Do not provoke disk failure or corrupt a real save to test it.
+
+Publication remains pending. Static/helper tests and the reported successful loads do not establish save-file durability or compatibility with every other mod.
+
 # 1.0.1 validation notes
 
-The README now covers r2modman, Thunderstore Mod Manager and manual installation. `CancelOnAutosave` defaults to `false`, preserving the selected speed during timer-triggered autosaves; `true` cancels it. Pause, bed, load and explicit save boundaries retain cancellation.
+The README now covers r2modman, Thunderstore Mod Manager and manual installation. `CancelOnAutosave` defaults to `false`, preserving the selected speed during timer-triggered autosaves. `true` cancels it. Pause, bed, load and explicit save boundaries retain cancellation.
 
 Sailwind's `SaveGame(bool)` argument selects compression, not the save type. A Harmony transpiler wraps only the timer autosave call in `SaveLoadManager.Update`. The two explicit-save calls remain unchanged. The save's busy period is exempt only when an autosave began while fast-forward was active and cancellation was disabled. Completion, cancellation and error paths clear that permission.
 
-The build passed with zero warnings/errors and all 195 checks passing. The checks cover both autosave choices at 2x/4x/8x, the across-frame busy period, rejected saves, manual interruption and external pause/sleep scales. Cecil reads the installed game IL to verify that only the third (timer) save call is replaced; the rewrite retains labels and exception boundaries and rejects unexpected save-call counts. These checks do not run Unity or establish live Harmony execution.
+The build passed with zero warnings/errors and all 195 checks passing. The checks cover both autosave choices at 2x/4x/8x, the across-frame busy period, rejected saves, manual interruption and external pause/sleep scales. Cecil reads the installed game IL to verify that only the third (timer) save call is replaced. The rewrite retains labels and exception boundaries and rejects unexpected save-call counts. These checks do not run Unity or establish live Harmony execution.
 
 The 1.0.1 play-test log confirmed the default `CancelOnAutosave = false` path: a compressed save completed while fast-forward was at 2x, and the next speed change was the pause menu restoring 1x. The installed DLL matched the candidate and no Fast Forward plugin errors were logged. The player also confirmed that `CancelOnAutosave = true` disables fast-forward on autosave. Both autosave settings have now passed live acceptance.
 
@@ -28,7 +78,7 @@ The 1.0.0 release build passed with zero warnings/errors and all 155 checks pass
 - Routine island loading no longer canceled acceleration after the fix.
 - Movement correctly reduced speed to 2x. Cycling while moving alternated between 1x and 2x under that limit. Player inventory handling was accepted.
 - Needs snapshots during acceleration showed food, water and rest decreasing with elapsed game time. An 8x sample spanning about 0.053 game hours lost about 0.16 food, 0.21 water and 0.26 rest, consistent with the inspected baseline rates.
-- Sail-a-dex 2.0.0 was present during testing. No direct simulation-speed conflict was found in the inspected code; this is not a guarantee for all mod combinations.
+- Sail-a-dex 2.0.0 was present during testing. No direct simulation-speed conflict was found in the inspected code. This is not a guarantee for all mod combinations.
 
 ## Limits of verification
 

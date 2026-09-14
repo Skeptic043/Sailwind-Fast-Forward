@@ -1,0 +1,11 @@
+# Sailwind Fast Forward
+
+This is the independent Fast Forward repository. Work from `E:\Projects\Unity\Sailwind\FastForward`; the parent `Sailwind/` and `Unity/` folders are organizational containers.
+
+- Follow the parent workspace's orchestrator/executor responsibilities. Keep scope, architecture, canonical documentation, integration and final reporting with the primary agent; delegate substantive implementation with exact paths and checks. Independently review code and evidence before integration, with a distinct reviewer for high-risk changes.
+- Shared reusable Unity/tool knowledge is available read-only at `../../unity-knowledge/`. Search before new engine/loader research, then inspect cited evidence and applicability. Capture reusable results there only within current task authority.
+- Game-specific research belongs in `../docs/research/`. This repository owns its requirements, architecture, settings, changelog and backlog. Historical investigation notes and release reviews remain historical; don't rewrite them to imply new acceptance.
+- Preserve the plugin ID and existing config section/key identities unless a separately tested migration is part of the task. Resetting FF must preserve game-owned pause, sleep and externally changed speeds.
+- Run `Build.ps1` and, when preparing packages, `Package.ps1` from this directory. Both accept explicit game/reference paths and use project-relative outputs. Game assemblies are read-only references.
+- Never use semicolons in public-facing prose, including Markdown documentation and generated configuration descriptions. Use separate sentences. Required C# punctuation is unaffected. Verify any advertised config input with the actual loader parser.
+- Local implementation, builds and packages do not authorize game installation changes, deployment, commits, pushes or publication. Respect explicit task authorization and preserve unrelated work.
