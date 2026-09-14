@@ -161,7 +161,9 @@ typeof(Paths).GetMethod("SetExecutablePath", System.Reflection.BindingFlags.Stat
 Check(Paths.ConfigPath.StartsWith(configScratch + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase),
     "BepInEx config paths are isolated in test scratch");
 ConfigurationChecks.Run(configScratch, Check);
+ShortcutChecks.Run(configScratch, Check);
 HoldChecks.Run(Check);
+HoldOverrideChecks.Run(Check);
 AutosaveChecks.Run(Check);
 foreach (int maximum in new[] { 2, 4, 8 })
 {
@@ -506,7 +508,7 @@ static class ConfigurationChecks
         blankFile.Save(); blankFile.Reload();
         check(blank.Hotkey.Value.MainKey == KeyCode.None && blank.ResetHotkey.Value.MainKey == KeyCode.None &&
             blank.HoldHotkey.Value.MainKey == KeyCode.None, "blank-disabled shortcuts remain disabled after real save/reload");
-        check(File.ReadAllText(blankPath).Contains("Hotkey = None"), "BepInEx serializes blank-disabled shortcuts as None");
+        check(File.ReadAllText(blankPath).Contains("Hotkey = " + Environment.NewLine), "blank-disabled shortcuts keep their blank text");
         Console.WriteLine("Generated config sample: " + freshPath);
         Console.WriteLine("Preserved custom config sample: " + oldPath);
     }

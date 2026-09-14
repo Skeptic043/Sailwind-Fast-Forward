@@ -32,6 +32,28 @@ internal static class AutosaveChecks
         state.End(true);
         check(state.BlocksBusySave(true), "duplicate or stale End cannot reacquire busy permission");
 
+        state.Reset();
+        check(state.TryEnterSave(true, false), "eligible owned hold may enter an idle manual save");
+        check(!state.BlocksBusySave(true, false, true), "eligible held manual save permits its busy phase");
+        check(!state.BlocksBusySave(true, true, true), "timer cancellation policy does not cancel a held manual save");
+        check(state.BlocksBusySave(true, false, false), "manual busy permission ends immediately when held eligibility ends");
+        check(state.BlocksBusySave(true, false, true), "renewed eligibility cannot resurrect old manual save permission");
+        state.Reset();
+        check(!state.TryEnterSave(true, true), "already-busy save cannot gain a manual hold exemption");
+        check(state.BlocksBusySave(true, false, true), "rejected busy save leaves no manual permission");
+        state.Reset(); state.Begin(false);
+        check(!state.TryEnterSave(true, false), "cancelled timer origin cannot masquerade as a held manual save");
+        state.End(true);
+        check(state.BlocksBusySave(true, false, true), "cancelled timer finally cannot create manual busy permission");
+        state.Reset(); state.Begin(true);
+        check(state.TryEnterSave(true, false), "continuing timer consumes timer prefix even with held manual eligibility");
+        state.End(true);
+        check(state.BlocksBusySave(true, true, true), "timer cancellation still revokes timer permission while hold is eligible");
+        state.Reset();
+        check(state.TryEnterSave(true, false), "new independent manual save may acquire fresh hold permission");
+        check(!state.BlocksBusySave(false, false, true), "manual completion clears its permission");
+        check(state.BlocksBusySave(true, false, true), "manual completion cannot exempt a later unrelated busy save");
+
         var error = new InvalidOperationException("synthetic serialization failure");
         int cancellations = 0;
         check(SaveErrorBoundary.Handle(null, () => cancellations++) == null && cancellations == 0,

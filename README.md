@@ -18,9 +18,9 @@ Install [Sailwind Fast Forward](https://thunderstore.io/c/sailwind/p/Skeptic043/
 
 Press **F7** to cycle **1x → 2x → 4x → 1x**. Press **F8** to turn fast-forward off and return directly to **1x** from any FF speed. A small indicator shows the active speed.
 
-Hold **F9** for fast-forward at `HoldSpeed` (default **4x**), subject to your configured maximum and movement/inventory limits. Releasing it returns to **1x**, even if you were using cycle mode before holding it. It does not cycle speeds or return to an earlier toggled speed.
+Hold **F9** for fast-forward at `HoldSpeed` (default **4x**), up to `MaxSpeed`. Walking, inventory and ordinary menus do not step the held speed down. Releasing it returns to **1x**, even if you were using cycle mode before holding it. It does not cycle speeds or return to an earlier toggled speed.
 
-All three shortcuts are configurable and support modifiers. Reset takes priority over hold, and hold takes priority over cycling. Hotkeys work while holding sailing controls and are ignored while the game is unfocused. Reset does not override the game's pause, sleep speed or a speed changed externally. After a reset or cancellation while holding F9, release it and press again to start a new hold.
+All three shortcuts are configurable and support modifiers. Reset takes priority over hold, and hold takes priority over cycling. Hotkeys work while holding sailing controls. New shortcuts require game focus. An active hold follows the key state reported by the game until release. Reset does not override the game's pause, sleep speed or a speed changed externally. After a reset or cancellation while holding F9, release it and press again to start a new hold.
 
 If your existing cycle shortcut already uses F8 (including with modifiers), the new reset shortcut starts unassigned to preserve it. Choose another reset key in the config.
 
@@ -39,33 +39,40 @@ Settings are grouped into **Controls**, **Display** and **Simulation**. Existing
 | Controls | `HoldHotkey` | `F9`* | Fast-forward only while held. Supports modifiers. Leave blank to disable. |
 | Display | `ShowIndicator` | `true` | Show or hide the speed indicator. |
 | Simulation | `MaxSpeed` | `4` | Highest fast-forward speed: `2`, `4` or `8`. |
-| Simulation | `HoldSpeed` | `4` | Requested hold speed: `2`, `4` or `8`, bounded by `MaxSpeed` and activity limits. |
-| Simulation | `MovementInventoryMaxSpeed` | `2` | Speed limit while moving or viewing inventory/stats: `1`, `2`, `4` or `8`. |
+| Simulation | `HoldSpeed` | `4` | Requested hold speed: `2`, `4` or `8`, bounded by `MaxSpeed`. |
+| Simulation | `MovementInventoryMaxSpeed` | `2` | Cycle-mode speed limit while moving or viewing inventory/stats: `1`, `2`, `4` or `8`. Does not limit hold mode. |
 | Simulation | `CancelOnAutosave` | `false` | Turn off fast-forward when an autosave starts. |
 
 *Reset starts unassigned when the existing cycle shortcut uses F8. Hold starts unassigned when cycle or reset uses F9. Explicitly saved bindings are retained.
 
-To disable a shortcut, remove everything after `=` on its config line. BepInEx may write an unassigned shortcut back as `None` when it saves the file.
+To disable a shortcut, remove everything after `=` on its config line. Existing `None` values also remain disabled.
 
-All three shortcuts use the same modifier format. For example, `F7 + LeftShift` requires holding left Shift while pressing F7. Key names are case-sensitive. Use names such as `LeftShift`, `RightShift`, `LeftControl` or `LeftAlt`, rather than `shift` or `ctrl`. For hold-to-FF, keep both the main key and its modifiers held.
+All three shortcuts use the same format. Key names ignore capitalization, so `o` works. `LeftShift + Mouse4` and `left shift + mouse 4` both require holding left Shift while pressing Mouse4. `Mouse4 + LeftShift` works too. For hold-to-FF, keep both the main key and its modifiers held. Sharing Shift with a sailing control does not block the shortcut.
+
+Use explicit modifier names such as `LeftShift`, `RightShift`, `LeftControl` or `LeftAlt`. Unsupported values stay in the file and produce a warning in the log. Only that shortcut is disabled until corrected. A value already erased by an earlier version must be entered again. Close the game before editing the file so its running configuration cannot overwrite your edits.
 
 Set `MaxSpeed` to `8` for **1x → 2x → 4x → 8x → 1x**.
 
 ### Movement and inventory
 
-By default, walking or opening inventory at 4x or 8x reduces speed to **2x**. Set `MovementInventoryMaxSpeed` to `1` to turn fast-forward off during those activities, or `8` to allow all speeds up to `MaxSpeed`. Stopping movement or closing inventory keeps the reduced speed. Press F7 to increase it again. While moving or viewing inventory, F7 cycles only through the allowed speeds. Looking around, steering, adjusting sails and being carried along by your boat do not trigger the movement limit unless you also press a movement control.
+In cycle mode, walking or opening inventory at 4x or 8x reduces speed to **2x** by default. Set `MovementInventoryMaxSpeed` to `1` to turn cycle-mode fast-forward off during those activities, or `8` to allow all speeds up to `MaxSpeed`. Stopping movement or closing inventory keeps the reduced speed. Press F7 to increase it again. While moving or viewing inventory, F7 cycles only through the allowed speeds. Hold mode ignores this activity limit. Looking around, steering, adjusting sails and being carried along by your boat do not trigger the movement limit unless you also press a movement control.
 
 ## During play
 
-- Cycle mode continues while alt-tabbed. Hold mode cancels on focus loss. Normal island loading does not cancel either mode.
-- Opening the pause menu cancels fast-forward. Inventory/stats uses your configured limit instead.
+- Cycle mode continues while alt-tabbed. Hold mode ends when the game reports its shortcut released, including when focus loss causes that release. Normal island loading does not cancel either mode.
+- Opening the pause menu cancels fast-forward. Inventory/stats limits cycle mode only.
 - Autosaves keep your current speed unless `CancelOnAutosave` is enabled.
-- Loading a save and entering bed cancel fast-forward. Turn it on again when you're ready.
+- Loading a save cancels both modes. Manual saves and entering bed cancel cycle mode. An active hold can continue through manual saves, bed entry, recovery and ordinary menus while FF still owns the speed.
+- If the game or another mod changes the speed, FF releases control. It does not override native sleep speed or automatically restart after pause, loading or another cancellation. Reset, plugin errors and changes to hold settings also end the hold.
 - Pause and sleep work as usual. Food, water and rest continue to drain during accelerated sailing.
 
 Higher speeds require more performance from your system. Lower `MaxSpeed` if the game struggles.
 
-Version 1.1.0 checks compatibility against the inspected Sailwind Steam build **24324368**. If a game update changes the inspected binary, FF disables itself and logs a compatibility error until the save path is reviewed again.
+Version 1.1.1 checks compatibility against the inspected Sailwind Steam build **24324368**. If a game update changes the inspected binary, FF disables itself and logs a compatibility error until the save path is reviewed again.
+
+## AI Use
+
+AI was used to write all of the code in this project. The original concept, design direction, testing, debugging, and release decisions are my own. I spent many hours personally testing Fast Forward and working through issues to make sure it behaves as intended. If you prefer not to use mods developed with AI assistance, I understand and respect that choice.
 
 ## Issues and links
 

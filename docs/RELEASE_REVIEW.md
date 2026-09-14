@@ -1,4 +1,41 @@
-# 1.1.0 release validation
+# 1.1.1 release validation
+
+## Reported problems and changes
+
+The player reported that movement stepped down hold-to-FF and that shortcuts such as `o` and `left shift + mouse 4` failed or disappeared. The actual BepInEx 5.4.23.5 converter reproduced both shortcut failures in isolated configuration files. Its case-sensitive parser returns an empty shortcut after an error, and the typed config entry then saves that empty value over the original text.
+
+All three shortcuts now bind as text and use one local parser. Case-insensitive Unity key names and spaced names are accepted. A conventional modifier chord works in either order. Unsupported text remains in the file, disables only that shortcut and produces a warning identifying the setting. Blank values remain blank and disabled. Existing section/key identities and unrelated entries are preserved. Values already erased by an earlier version cannot be recovered automatically. Configuration editors may now present these settings as text fields rather than typed keybind controls.
+
+An intentional hold uses HoldSpeed up to MaxSpeed and bypasses ordinary movement, inventory, bed/recovery, shipyard and menu restrictions. An already active owned hold can continue through a manual save. Cycle mode keeps its previous restrictions. Hold follows the game's reported chord state across focus changes, while new activation still requires focus. No native or external speed is overwritten after ownership is lost.
+
+The existing autosave choices remain in effect. CancelOnAutosave=true cancels even during a hold. False permits the existing timer-save continuation. The explicit save state distinguishes a cancelled timer prefix from a permitted manual hold save. Reset, pause, loading, world transition, invalidating hold settings, plugin shutdown and errors still cancel. No pending resume or automatic reacquisition was added. A shared exception-only finalizer now covers both SaveGame entry failures and the save coroutine, cancelling FF while retaining the original exception and leaving game save state untouched.
+
+## Validation and limits
+
+The orchestrator's integrated build passed 1,087 checks with zero warnings or errors. These include actual-loader reproductions of both reported shortcut failures, bind/save/reload retention for all three shortcuts, invalid-input warnings and repair, held modifiers alongside movement, hold overrides at 2x/4x/8x, physical release, hard cancellation, manual saves, timer policy and save errors. The existing actual-Harmony normalization regression and semantic timer-save IL guard still pass. The accepted game assembly hash and guard were not relaxed.
+
+The orchestrator independently inspected the implementation diff and test outputs. A distinct reviewer inspected the final source, configuration and documentation, repeated all 1,087 checks with zero warnings or errors, and produced the same DLL hash. No actionable review findings remain. The public README carries the same AI-use disclaimer as SLA, with the project name changed. The loader parsing observation and retrieval commands were also captured in the separate private Unity KB.
+
+The release and source ZIPs passed exact inventory and per-entry hash checks. A fresh extraction of the source ZIP built and passed all 1,087 checks with separately supplied references and cached dependencies. This verifies source-package completeness, not byte-identical builds across checkout paths.
+
+Tests run against separately supplied game/loader references under .NET 10. They do not execute the Unity/Mono player lifecycle, install detours in a live game, certify save integrity or prove every configuration editor's UI behavior. The prior 1.1.0 play observations below remain historical. The user has deferred manufactured edge-case play sessions.
+
+## Live acceptance
+
+On 2026-09-14, the user reported the following 1.1.1 live checks passed:
+
+- FF started without errors.
+- `o` and `left shift + mouse 4` worked and the bindings survived restart.
+- Holding while walking and viewing inventory kept the speed steady. Releasing returned to 1x.
+- Reset and pause cancelled FF without restarting it while the key remained held.
+
+The user clarified that the normal-save check was not performed because their normal save action requires quitting the game. They consider this untested scenario non-blocking. Manual-save continuation has automated coverage, not live acceptance.
+
+These are player-reported results, not a new independent log inspection. Together with the completed automated checks and separate review, they complete the agreed release acceptance. No additional stress testing is required for this release decision. The packaged DLL remains SHA256 `B159C161A034B2C57EECB2E402C7F381BEE54DF8D2D604934E431141A048EA19`.
+
+Release files are prepared locally. Recording acceptance does not perform or authorize a commit, push or publication.
+
+# 1.1.0 release validation (historical)
 
 ## Release decision and live observations
 

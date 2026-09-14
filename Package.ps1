@@ -46,7 +46,8 @@ foreach ($path in @('.gitignore', '.gitattributes', 'manifest.json', 'README.md'
     'LICENSE', 'icon.png', 'assets/icon.svg', 'tools/Render-Icon.ps1', 'Build.ps1', 'Package.ps1',
     'Directory.Build.props', 'docs/BUILDING.md', 'docs/RELEASE_REVIEW.md',
     'src/AutosaveState.cs', 'src/AutosavePatch.cs', 'src/SaveErrorBoundary.cs', 'src/GameCompatibility.cs', 'src/Plugin.cs', 'src/PluginSettings.cs', 'src/SpeedOwnership.cs', 'src/HotkeyInput.cs', 'src/HoldInput.cs', 'src/BackgroundExecution.cs',
-    'src/SailwindFastForward.csproj', 'tests/Program.cs', 'tests/HoldChecks.cs', 'tests/AutosaveChecks.cs', 'tests/HarmonyNormalizationChecks.cs', 'tests/OwnershipChecks.csproj')) {
+    'src/ShortcutParser.cs', 'src/ShortcutSetting.cs', 'src/HoldPolicy.cs',
+    'src/SailwindFastForward.csproj', 'tests/Program.cs', 'tests/HoldChecks.cs', 'tests/HoldOverrideChecks.cs', 'tests/ShortcutChecks.cs', 'tests/AutosaveChecks.cs', 'tests/HarmonyNormalizationChecks.cs', 'tests/OwnershipChecks.csproj')) {
     $sourceFiles[$path] = Join-Path $PSScriptRoot $path
 }
 $utf8 = [Text.UTF8Encoding]::new($false, $true)

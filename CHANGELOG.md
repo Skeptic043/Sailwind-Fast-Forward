@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1
+
+- Holding FF now keeps the configured hold speed through movement, inventory, ordinary menus and manual saves. The movement/inventory limit still applies to cycle mode.
+- Hold mode follows the shortcut state reported by the game. Pause, loading, reset and loss of speed ownership still cancel it. Autosaves retain the existing configurable behavior.
+- Fixed lowercase and spaced shortcut names, including `o` and `left shift + mouse 4`. Modifiers can appear before or after the main key.
+- Invalid shortcut text is retained with a clear log warning instead of being overwritten with an empty binding. Existing valid settings carry over. Re-enter any value already erased by an older version.
+
 ## 1.1.0
 
 - Added **F8** to return directly to 1x from any fast-forward speed.

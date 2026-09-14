@@ -34,7 +34,7 @@ internal static class HoldChecks
             f.Keys.Clear(); f.Down.Clear(); f.Step();
             check(f.Scale == 1f, "hold release never restores previous toggled " + toggled);
         }
-        foreach (string boundary in new[] { "reset", "pause", "external", "focus", "config", "release-modifier", "manual" })
+        foreach (string boundary in new[] { "reset", "pause", "external", "config", "release-modifier", "manual" })
         {
             var f = new Frames { Binding = new KeyboardShortcut(KeyCode.F9, KeyCode.LeftControl) };
             f.Keys.UnionWith(new[] { KeyCode.F9, KeyCode.LeftControl }); f.Down.Add(KeyCode.F9); f.Step(); f.Down.Clear();
@@ -43,7 +43,6 @@ internal static class HoldChecks
                 case "reset": f.Down.Add(KeyCode.F8); break;
                 case "pause": f.Blocked = "pause"; break;
                 case "external": f.Scale = 16f; break;
-                case "focus": f.Focused = false; break;
                 case "config": f.Requested = 8; break;
                 case "release-modifier": f.Keys.Remove(KeyCode.LeftControl); break;
                 case "manual": f.Cancel("manual boundary"); break;
@@ -59,7 +58,7 @@ internal static class HoldChecks
             f.Keys.Add(KeyCode.F9); f.Down.Add(KeyCode.F9);
             check(f.Step() == SpeedInputAction.Hold, boundary + " rearms only after release/new press");
         }
-        foreach (string unavailable in new[] { "blocked", "external", "cap", "modifier", "focus", "already-held" })
+        foreach (string unavailable in new[] { "blocked", "external", "modifier", "focus", "already-held" })
         {
             var f = new Frames { Binding = new KeyboardShortcut(KeyCode.F9, KeyCode.LeftControl) };
             f.Keys.UnionWith(new[] { KeyCode.F9, KeyCode.LeftControl }); f.Down.Add(KeyCode.F9);
@@ -67,7 +66,6 @@ internal static class HoldChecks
             {
                 case "blocked": f.Blocked = "loading"; break;
                 case "external": f.Scale = 16f; break;
-                case "cap": f.Effective = 1; break;
                 case "modifier": f.Keys.Remove(KeyCode.LeftControl); break;
                 case "focus": f.Focused = false; break;
                 case "already-held": f.Down.Clear(); break;
@@ -79,13 +77,13 @@ internal static class HoldChecks
         var limit = new Frames { Requested = 8 };
         limit.Keys.Add(KeyCode.F9); limit.Down.Add(KeyCode.F9); limit.Step(); limit.Down.Clear();
         limit.Effective = 2;
-        check(limit.Step() == SpeedInputAction.Limit && limit.Scale == 2f, "movement limit lowers an active hold");
+        check(limit.Step() == SpeedInputAction.None && limit.Scale == 8f, "active hold overrides movement limit");
         limit.Effective = 8;
-        check(limit.Step() == SpeedInputAction.None && limit.Scale == 2f, "ending movement does not raise the held speed");
+        check(limit.Step() == SpeedInputAction.None && limit.Scale == 8f, "ending movement keeps requested held speed");
         limit.Down.Add(KeyCode.F7);
-        check(limit.Step() == SpeedInputAction.None && limit.Scale == 2f, "hold wins cycle while held");
+        check(limit.Step() == SpeedInputAction.None && limit.Scale == 8f, "hold wins cycle while held");
         limit.Effective = 1; limit.Step(); limit.Effective = 8; limit.Down.Clear();
-        check(limit.Step() == SpeedInputAction.None && limit.Scale == 1f, "activity cap one cancels and suppresses held reacquisition");
+        check(limit.Step() == SpeedInputAction.None && limit.Scale == 8f, "active hold overrides activity cap one");
         var suppressed = new Frames();
         suppressed.Speed.TrySelect(1f, 8); suppressed.Scale = 8f; suppressed.Focused = false; suppressed.Step();
         suppressed.Focused = true; suppressed.Keys.Add(KeyCode.F9); suppressed.Effective = 2;
@@ -93,8 +91,8 @@ internal static class HoldChecks
             "suppressed held input cannot bypass safety limit on latched speed");
         var capOne = new Frames { Effective = 1 };
         capOne.Speed.TrySelect(1f, 4); capOne.Scale = 4f; capOne.Keys.Add(KeyCode.F9); capOne.Down.Add(KeyCode.F9);
-        check(capOne.Step() == SpeedInputAction.Limit && capOne.Scale == 1f && !capOne.State.Active,
-            "failed new hold at cap one still lowers existing latched speed");
+        check(capOne.Step() == SpeedInputAction.Hold && capOne.Scale == 4f && capOne.State.Active,
+            "new intentional hold overrides activity cap one from existing latched speed");
 
         var overlap = new Frames { Binding = new KeyboardShortcut(KeyCode.F7) };
         overlap.Keys.Add(KeyCode.F7); overlap.Down.Add(KeyCode.F7);

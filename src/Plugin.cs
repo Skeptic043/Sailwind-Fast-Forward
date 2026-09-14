@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 
 namespace SailwindFastForward
 {
-    [BepInPlugin(Id, "Sailwind Fast Forward", "1.1.0")]
+    [BepInPlugin(Id, "Sailwind Fast Forward", "1.1.1")]
     [BepInProcess("Sailwind.exe")]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -34,7 +34,7 @@ namespace SailwindFastForward
             resetHotkey = () => Cancel("reset hotkey");
             cancelInput = Cancel;
             saveError = () => Cancel("save error");
-            settings = new PluginSettings(Config);
+            settings = new PluginSettings(Config, message => Logger.LogWarning(message));
             try
             {
                 GameCompatibility.RequireSupported(typeof(SaveLoadManager).Assembly.Location);
@@ -56,15 +56,15 @@ namespace SailwindFastForward
                 var moveNext = iterator == null ? null : AccessTools.DeclaredMethod(iterator, "MoveNext", Type.EmptyTypes);
                 if (moveNext == null || moveNext.ReturnType != typeof(bool))
                     throw new MissingMethodException("SaveLoadManager.<DoSaveGame>d__27.MoveNext");
-                harmony.Patch(moveNext, finalizer: new HarmonyMethod(typeof(Plugin), nameof(AfterSaveCoroutine)));
+                harmony.Patch(moveNext, finalizer: new HarmonyMethod(typeof(Plugin), nameof(AfterSaveError)));
                 SceneManager.activeSceneChanged += OnActiveSceneChanged;
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 ready = true;
-                Logger.LogInfo($"Ready. {settings.Hotkey.Value} to cycle; {settings.ResetHotkey.Value} to return to 1x; hold {settings.HoldHotkey.Value} for {settings.HoldSpeed.Value}x within speed limits.");
+                Logger.LogInfo($"Ready. {settings.Hotkey.Value} to cycle. {settings.ResetHotkey.Value} to return to 1x. Hold {settings.HoldHotkey.Value} for {Math.Min(settings.HoldSpeed.Value, settings.MaxSpeed.Value)}x.");
             }
             catch (Exception error)
             {
-                Logger.LogError($"Initialization failed; fast-forward disabled: {error}");
+                Logger.LogError($"Initialization failed. Fast-forward disabled: {error}");
                 harmony?.UnpatchSelf();
                 enabled = false;
             }
@@ -75,14 +75,19 @@ namespace SailwindFastForward
             var method = AccessTools.DeclaredMethod(type, name, arguments);
             if (method == null)
                 throw new MissingMethodException(type.FullName, name);
-            harmony.Patch(method, prefix: new HarmonyMethod(typeof(Plugin), nameof(BeforeBoundary)));
+            harmony.Patch(method, prefix: new HarmonyMethod(typeof(Plugin), nameof(BeforeBoundary)),
+                finalizer: type == typeof(SaveLoadManager) && name == "SaveGame"
+                    ? new HarmonyMethod(typeof(Plugin), nameof(AfterSaveError)) : null);
         }
 
-        private static void BeforeBoundary(MethodBase __originalMethod)
+        private static void BeforeBoundary(MethodBase __originalMethod, object __instance)
         {
-            if (instance == null) return;
+            if (instance == null || !instance.ready || instance.settings == null) return;
             if (__originalMethod.DeclaringType == typeof(SaveLoadManager) &&
-                __originalMethod.Name == "SaveGame" && instance.autosave.TryEnterSave()) return;
+                __originalMethod.Name == "SaveGame" && instance.autosave.TryEnterSave(instance.CanContinueHold(),
+                    (bool)instance.saveBusy.GetValue(__instance))) return;
+            if (__originalMethod.DeclaringType == typeof(Sleep) && __originalMethod.Name == "FallAsleep" &&
+                !HoldPolicy.Blocks(HoldBoundary.SleepOrBed, instance.HoldIntent())) return;
             instance.Cancel($"{__originalMethod.DeclaringType.Name}.{__originalMethod.Name}");
         }
 
@@ -91,7 +96,7 @@ namespace SailwindFastForward
                 AccessTools.DeclaredMethod(typeof(SaveLoadManager), "SaveGame", new[] { typeof(bool) }),
                 AccessTools.DeclaredMethod(typeof(Plugin), nameof(SaveAutosave)));
 
-        private static Exception AfterSaveCoroutine(Exception __exception) =>
+        private static Exception AfterSaveError(Exception __exception) =>
             SaveErrorBoundary.Handle(__exception, instance?.saveError);
 
         private static void SaveAutosave(SaveLoadManager manager, bool compressed)
@@ -103,6 +108,7 @@ namespace SailwindFastForward
                 return;
             }
             bool alreadyBusy = (bool)plugin.saveBusy.GetValue(manager);
+            if (plugin.settings.CancelOnAutosave.Value) plugin.Cancel("timer autosave");
             plugin.autosave.Begin(!plugin.settings.CancelOnAutosave.Value && plugin.speed.Active && !alreadyBusy);
             try { manager.SaveGame(compressed); }
             catch (Exception error)
@@ -113,23 +119,39 @@ namespace SailwindFastForward
             finally { plugin.autosave.End((bool)plugin.saveBusy.GetValue(manager)); }
         }
 
-        private string BlockReason()
+        private static string HardBlockReason()
         {
             if (!GameState.playing) return "outside gameplay";
             if (GameState.currentlyLoading) return "save loading";
             if (GameState.justStarted || GameState.changingStartRegion) return "world transition";
-            // loadingScenes and loadingBoatLocalItems also describe routine island/boat streaming.
-            if (GameState.sleeping || GameState.eyesFullyClosed || Sleep.timeskipSleep ||
-                GameState.justWokeUp || GameState.inBed) return "sleep/bed";
-            if (GameState.recovering) return "recovery";
             if (GameState.wasInSettingsMenu) return "settings menu";
-            if (GameState.currentShipyard) return "shipyard";
-            if (EconomyUI.instance && EconomyUI.instance.uiActive) return "economy menu";
-            if (GameState.inCursorMenu && !InventoryOpen()) return "cursor menu";
-            if (!SaveLoadManager.instance) return "save unavailable";
-            if (autosave.BlocksBusySave((bool)saveBusy.GetValue(SaveLoadManager.instance), settings.CancelOnAutosave.Value)) return "save busy";
             return null;
         }
+
+        private string BlockReason()
+        {
+            string hardBlock = HardBlockReason();
+            if (hardBlock != null) return hardBlock;
+            // loadingScenes and loadingBoatLocalItems also describe routine island/boat streaming.
+            bool holdIntent = HoldIntent();
+            if ((GameState.sleeping || GameState.eyesFullyClosed || Sleep.timeskipSleep ||
+                GameState.justWokeUp || GameState.inBed) && HoldPolicy.Blocks(HoldBoundary.SleepOrBed, holdIntent)) return "sleep/bed";
+            if (GameState.recovering && HoldPolicy.Blocks(HoldBoundary.Recovery, holdIntent)) return "recovery";
+            if (GameState.currentShipyard && HoldPolicy.Blocks(HoldBoundary.Shipyard, holdIntent)) return "shipyard";
+            if (EconomyUI.instance && EconomyUI.instance.uiActive && HoldPolicy.Blocks(HoldBoundary.Economy, holdIntent)) return "economy menu";
+            if (GameState.inCursorMenu && !InventoryOpen() && HoldPolicy.Blocks(HoldBoundary.CursorMenu, holdIntent)) return "cursor menu";
+            if (!SaveLoadManager.instance) return "save unavailable";
+            if (autosave.BlocksBusySave((bool)saveBusy.GetValue(SaveLoadManager.instance), settings.CancelOnAutosave.Value,
+                CanContinueHold())) return "save busy";
+            return null;
+        }
+
+        private bool HoldIntent() => settings != null && HardBlockReason() == null && holdInput.HasIntent(Time.timeScale, speed.SelectedSpeed,
+            Application.isFocused, settings.HoldHotkey.Value, Input.GetKeyDown, Input.GetKey);
+
+        private bool CanContinueHold() => HoldPolicy.CanContinue(holdInput, speed, Time.timeScale,
+            HotkeyInput.IsHeld(settings.HoldHotkey.Value.MainKey, settings.HoldHotkey.Value.Modifiers, Input.GetKey),
+            HardBlockReason() != null);
 
         private static bool InventoryOpen() => PlayerNeedsUI.instance && PlayerNeedsUI.instance.IsActive();
 
@@ -196,7 +218,7 @@ namespace SailwindFastForward
             float previous = Time.timeScale;
             if (speed.Release(previous)) Time.timeScale = 1f;
             background.Restore();
-            Logger.LogInfo($"Fast-forward off ({reason}); scale {previous} -> {Time.timeScale}.");
+            Logger.LogInfo($"Fast-forward off ({reason}). Scale {previous} -> {Time.timeScale}.");
             LogNeeds();
         }
 

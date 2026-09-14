@@ -13,6 +13,9 @@
     <Compile Include="..\src\GameCompatibility.cs" Link="GameCompatibility.cs" />
     <Compile Include="..\src\SaveErrorBoundary.cs" Link="SaveErrorBoundary.cs" />
     <Compile Include="..\src\PluginSettings.cs" Link="PluginSettings.cs" />
+    <Compile Include="..\src\ShortcutSetting.cs" Link="ShortcutSetting.cs" />
+    <Compile Include="..\src\ShortcutParser.cs" Link="ShortcutParser.cs" />
+    <Compile Include="..\src\HoldPolicy.cs" Link="HoldPolicy.cs" />
     <Compile Include="..\src\BackgroundExecution.cs" Link="BackgroundExecution.cs" />
     <Compile Include="..\src\AutosaveState.cs" Link="AutosaveState.cs" />
     <Compile Include="..\src\AutosavePatch.cs" Link="AutosavePatch.cs" />
