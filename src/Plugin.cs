@@ -8,14 +8,14 @@ using UnityEngine.SceneManagement;
 
 namespace SailwindFastForward
 {
-    [BepInPlugin(Id, "Sailwind Fast Forward", "1.1.1")]
+    [BepInPlugin(Id, "Sailwind Fast Forward", "1.1.2")]
     [BepInProcess("Sailwind.exe")]
     public sealed class Plugin : BaseUnityPlugin
     {
         internal const string Id = "local.sailwind.fastforward";
         private readonly SpeedOwnership speed = new SpeedOwnership();
         private readonly HoldInput holdInput = new HoldInput();
-        private readonly AutosaveState autosave = new AutosaveState();
+        private SaveContinuation autosave;
         private readonly BackgroundExecution background = new BackgroundExecution(
             () => Application.runInBackground, value => Application.runInBackground = value);
         private PluginSettings settings;
@@ -34,10 +34,10 @@ namespace SailwindFastForward
             resetHotkey = () => Cancel("reset hotkey");
             cancelInput = Cancel;
             saveError = () => Cancel("save error");
+            autosave = new SaveContinuation(() => Cancel("save continuation unavailable"));
             settings = new PluginSettings(Config, message => Logger.LogWarning(message));
             try
             {
-                GameCompatibility.RequireSupported(typeof(SaveLoadManager).Assembly.Location);
                 saveBusy = AccessTools.Field(typeof(SaveLoadManager), "busy");
                 if (saveBusy == null || saveBusy.FieldType != typeof(bool))
                     throw new MissingFieldException("SaveLoadManager.busy");
@@ -49,18 +49,23 @@ namespace SailwindFastForward
                 PatchBoundary(typeof(SaveLoadManager), "LoadGame", new[] { typeof(int) });
                 // Also covers pass-out/recovery, which calls FallAsleep before its fade.
                 PatchBoundary(typeof(Sleep), "FallAsleep", Type.EmptyTypes);
-                var saveUpdate = AccessTools.DeclaredMethod(typeof(SaveLoadManager), "Update", Type.EmptyTypes);
-                if (saveUpdate == null) throw new MissingMethodException("SaveLoadManager.Update");
-                harmony.Patch(saveUpdate, transpiler: new HarmonyMethod(typeof(Plugin), nameof(MarkAutosave)));
-                var iterator = typeof(SaveLoadManager).GetNestedType("<DoSaveGame>d__27", BindingFlags.NonPublic);
-                var moveNext = iterator == null ? null : AccessTools.DeclaredMethod(iterator, "MoveNext", Type.EmptyTypes);
-                if (moveNext == null || moveNext.ReturnType != typeof(bool))
-                    throw new MissingMethodException("SaveLoadManager.<DoSaveGame>d__27.MoveNext");
-                harmony.Patch(moveNext, finalizer: new HarmonyMethod(typeof(Plugin), nameof(AfterSaveError)));
+                bool timerInstalled = SaveContinuation.TryInstall("Timer autosave hook", () =>
+                {
+                    var saveUpdate = AccessTools.DeclaredMethod(typeof(SaveLoadManager), "Update", Type.EmptyTypes);
+                    if (saveUpdate == null) throw new MissingMethodException("SaveLoadManager.Update");
+                    harmony.Patch(saveUpdate, transpiler: new HarmonyMethod(typeof(Plugin), nameof(MarkAutosave)));
+                }, message => Logger.LogWarning(message));
+                // A transpiler may run successfully before Harmony's patch application fails.
+                autosave.SetTimerInstalled(timerInstalled);
+                autosave.SetCoroutineSupport(SaveContinuation.TryInstall("Save coroutine error hook", () =>
+                {
+                    harmony.Patch(SaveCoroutine.FindMoveNext(typeof(SaveLoadManager)),
+                        finalizer: new HarmonyMethod(typeof(Plugin), nameof(AfterSaveError)));
+                }, message => Logger.LogWarning(message)));
                 SceneManager.activeSceneChanged += OnActiveSceneChanged;
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 ready = true;
-                Logger.LogInfo($"Ready. {settings.Hotkey.Value} to cycle. {settings.ResetHotkey.Value} to return to 1x. Hold {settings.HoldHotkey.Value} for {Math.Min(settings.HoldSpeed.Value, settings.MaxSpeed.Value)}x.");
+                Logger.LogInfo($"Ready. {settings.Hotkey.Value} to cycle. {settings.ResetHotkey.Value} to return to 1x. Hold {settings.HoldHotkey.Value} for {settings.HoldSpeed.Value}x.");
             }
             catch (Exception error)
             {
@@ -91,10 +96,16 @@ namespace SailwindFastForward
             instance.Cancel($"{__originalMethod.DeclaringType.Name}.{__originalMethod.Name}");
         }
 
-        private static IEnumerable<CodeInstruction> MarkAutosave(IEnumerable<CodeInstruction> instructions) =>
-            AutosavePatch.Rewrite(instructions,
+        private static IEnumerable<CodeInstruction> MarkAutosave(IEnumerable<CodeInstruction> instructions)
+        {
+            var rewritten = AutosavePatch.Rewrite(instructions,
                 AccessTools.DeclaredMethod(typeof(SaveLoadManager), "SaveGame", new[] { typeof(bool) }),
-                AccessTools.DeclaredMethod(typeof(Plugin), nameof(SaveAutosave)));
+                AccessTools.DeclaredMethod(typeof(Plugin), nameof(SaveAutosave)), out string failure);
+            instance?.autosave.SetTimerSupport(failure == null);
+            if (failure != null)
+                instance?.Logger.LogWarning($"Timer autosave layout changed ({failure}). Fast-forward remains available. All saves will cancel fast-forward, including held fast-forward. Report this warning if save continuation is needed.");
+            return rewritten;
+        }
 
         private static Exception AfterSaveError(Exception __exception) =>
             SaveErrorBoundary.Handle(__exception, instance?.saveError);
@@ -213,7 +224,7 @@ namespace SailwindFastForward
         private void Cancel(string reason)
         {
             holdInput.Invalidate();
-            autosave.Reset();
+            autosave?.Reset();
             if (!speed.Active) return;
             float previous = Time.timeScale;
             if (speed.Release(previous)) Time.timeScale = 1f;

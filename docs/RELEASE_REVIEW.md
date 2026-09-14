@@ -1,4 +1,42 @@
-# 1.1.1 release validation
+# 1.1.2 release validation
+
+## Reported problem and change
+
+Switching Sailwind to beta caused 1.1.1 to reject the game assembly before installing its hooks. Version 1.1.2 removes the assembly-hash allowlist. Game patches do not require approval or a new mod release merely because their binary identity changed.
+
+Required pause, sleep and save/load boundaries remain mandatory. The timer-save transpiler still validates its semantic layout before rewriting the timer call. Save-coroutine discovery follows the factory's constructed iterator and its actual IEnumerator entry point, without depending on a generated numeric suffix.
+
+Save continuation requires both a successfully installed timer hook with a recognized layout and the coroutine error hook. If either is unavailable, FF remains usable with a warning and all saves cancel it, including active hold mode. Unrecognized timer instructions pass through unchanged. Losing support during later transpilation resets pending save permissions and cancels owned FF. Configuration identities, default autosave policy and speed ownership remain unchanged.
+
+After the initial beta play check, the user requested independent cycle and hold speeds. `MaxSpeed` now limits cycle mode only. `HoldSpeed` independently selects 2x, 4x or 8x. Existing setting identities and defaults are retained. Changing the cycle ceiling does not interrupt an active hold. Hold-speed or hold-binding changes still cancel it. The earlier player report predates this addition.
+
+## Validation and limits
+
+The orchestrator independently inspected the independent-hold implementation and tests, then built the integrated candidate against beta. All 1,197 checks passed with zero compiler warnings or errors. The current DLL SHA256 is `CBD36AA8463B2EC42BA29C081C60F9ACBCA95C5D675D9A57B47A10EBE69B344E`. Coverage includes all cycle-limit and hold-speed combinations, 4x cycling with 8x hold from idle and cycle mode, release followed by a 2x/4x/1x cycle, activity and focus handling, independent cycle-ceiling changes, hold-setting cancellation and real config save/reload. Existing save continuation and compatibility checks also pass. Live acceptance is player-reported below.
+
+The final release ZIP contains eight verified files and the source ZIP contains 37. Metadata, versions, icon, exact inventory and every entry's SHA256 passed package validation. A fresh extraction of the current source ZIP built against beta with zero compiler warnings or errors and passed all 1,197 checks. Its test suite also passed all 1,197 checks against the retained stable references. The final packages include these completion notes, with all other source content unchanged from the tested extraction. Release ZIP, source ZIP and checksums are prepared locally for the user's publication.
+
+The installed beta is Steam build 25217411, Assembly-CSharp.dll SHA256 `3DA76CAA73C76B5C549EAD6A5EBE94D69F675BE378477E7E2151E22D796CFC20`. The retained stable test reference matches build 24324368, SHA256 `978A21A680F42C89EBCB3530F9A99EF074960BE6377DAF8E85893134A5E5CE23`. Hashes identify test inputs only. Neither is a runtime allowlist.
+
+The separate Sailwind research directory retains a new beta inspection map and the complete unchanged harness. Selected save call positions, iterator events and capture boundaries match the historical map. These are bounded static observations, not a save-integrity guarantee.
+
+Before the independent-hold addition, the orchestrator's integrated beta build passed 1,172 checks with zero compiler warnings or errors. A distinct reviewer independently inspected that source and repeated the same checks, producing the same DLL SHA256 `1884A2A471BA05E1E0EBCA0CB8649F8729528ECDEA3ED52465B444049D38631F`. No blocking review findings remained for that candidate.
+
+New regression checks cover changed assembly identities and renumbered iterators, unavailable or ambiguous factories, a discarded iterator, failed optional-hook installation, every hook-availability combination for held and cycled saves, and loss of support during active continuation. Existing tests continue to verify the recognized timer rewrite and preserve original IL for altered branches, fields, calls and arguments. Production startup wiring was inspected separately because the helper test executable does not run Plugin.Awake.
+
+The earlier compatibility-fix release ZIP contains eight verified files and its source ZIP contains 37. Packaging checks exact inventory, per-entry hashes, metadata and version consistency. A fresh extraction of that source ZIP built against beta and passed all 1,172 checks. The same extracted test suite then passed all 1,172 checks against the retained stable references. Those package checks predate the independent-hold addition and current README edits. Byte-identical builds across different checkout paths are not claimed.
+
+Tests use .NET 10 with actual game and loader references. They do not execute the Unity/Mono player lifecycle or install detours in a live game. No agent-performed game installation changes or publication have been performed.
+
+## Player-reported live check
+
+On 2026-09-14, the user reported that the game booted and FF worked as expected after the 1.1.2 fix. This supports beta startup and ordinary FF use. It is a player report, not an independent inspection of the installed DLL or logs, and does not establish a separate save/reload or degraded-hook test.
+
+The user subsequently tested an 8x hold alongside a 4x cycle and reported that both worked perfectly. This is player-reported acceptance of the independent-speed addition. It does not constitute an independent installed-DLL hash check or a broader save-integrity claim.
+
+The user approved packaging after the final two README edits were reviewed. The default-controls label and shortcut-example spacing are correct. The settings table was corrected to describe the independent cycle and hold speeds, with matching performance guidance. Other public wording is retained.
+
+# 1.1.1 release validation (historical)
 
 ## Reported problems and changes
 

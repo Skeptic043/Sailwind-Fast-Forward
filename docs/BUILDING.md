@@ -14,7 +14,7 @@ This builds the plugin, runs the behavior checks and copies the DLL to `artifact
 
 Configuration checks use the actual BepInEx library with fresh and customized config fixtures under `.local/config-checks/<run>/`. They verify default grouping, all three shortcuts, lowercase and spaced names, modifier order, invalid text retention and save/reload preservation. Shortcuts bind as text and parse separately within this plugin. No global loader converter is replaced. Behavior checks exercise held activity overrides, input-session cancellation and save continuation/error handling. These checks run under .NET 10, not the live Unity/Mono game loop.
 
-The candidate deliberately rejects an uninspected game binary and changed timer-save IL context. The verified Assembly-CSharp.dll SHA256 is `978A21A680F42C89EBCB3530F9A99EF074960BE6377DAF8E85893134A5E5CE23` (Steam build 24324368). A failed compatibility check requires inspecting the new save path and updating tests/evidence. Simply changing the accepted hash is not sufficient. Other mods' runtime patches still require separate compatibility testing.
+There is no game-version or assembly-hash allowlist. Required pause, sleep and save/load boundaries still need compatible game members. The optional timer-save hook checks the semantic IL layout before changing it. Save-coroutine discovery tolerates compiler renumbering. If either optional hook is unavailable, FF remains usable and cancels on all saves, including hold mode. Unexpected timer IL is left unchanged. Inspect a warning when restoring save continuation support, rather than adding a new accepted build hash. Other mods' runtime patches still require separate compatibility testing.
 
 To build and verify the distributable ZIP and source ZIP:
 

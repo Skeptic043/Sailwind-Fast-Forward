@@ -52,10 +52,9 @@ internal static class HarmonyNormalizationChecks
             if (mutation == "member")
                 changed.First(instruction => instruction.operand is FieldInfo field && field.Name == "enableAutosave").operand =
                     typeof(SaveLoadManager).GetField("save");
-            bool rejected = false;
-            try { AutosavePatch.Rewrite(changed, save, replacement).ToList(); }
-            catch (InvalidOperationException) { rejected = true; }
-            check(rejected, "normalized HarmonyX input still rejects changed " + mutation);
+            var retained = AutosavePatch.Rewrite(changed, save, replacement, out string failure).ToList();
+            check(failure != null && retained.SequenceEqual(changed),
+                "normalized HarmonyX input preserves original instructions for changed " + mutation);
         }
     }
 

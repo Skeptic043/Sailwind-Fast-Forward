@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2
+
+- Cycle and hold speeds are now independent. Keep a 1x/2x/4x cycle and use 8x while holding, or choose any other supported combination.
+- Removed the game-build lockout. FF no longer disables itself just because a Sailwind update or beta changes the game assembly.
+- Save-coroutine detection now tolerates compiler-generated renumbering.
+- If the optional save hooks no longer match, FF stays available and logs a warning. All saves then cancel FF, including hold mode, instead of preventing the mod from starting.
+
 ## 1.1.1
 
 - Holding FF now keeps the configured hold speed through movement, inventory, ordinary menus and manual saves. The movement/inventory limit still applies to cycle mode.

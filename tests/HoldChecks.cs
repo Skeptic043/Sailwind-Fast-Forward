@@ -14,16 +14,49 @@ internal static class HoldChecks
             var f = new Frames { Requested = requested, Maximum = maximum };
             f.Keys.UnionWith(new[] { KeyCode.F9, KeyCode.W, KeyCode.Mouse0 });
             f.Down.Add(KeyCode.F9);
-            check(f.Step() == SpeedInputAction.Hold && f.Scale == Math.Min(requested, maximum),
-                $"hold {requested} respects maximum {maximum} and unrelated controls");
+            check(f.Step() == SpeedInputAction.Hold && f.Scale == requested,
+                $"hold {requested} is independent of cycle maximum {maximum} and unrelated controls");
             f.Down.Clear();
-            check(f.Step() == SpeedInputAction.None && f.State.Active, "held key sustains without a repeat press");
+            check(f.Step() == SpeedInputAction.None && f.State.Active && f.Scale == requested, "held key sustains independent speed without a repeat press");
             f.Keys.Remove(KeyCode.F9);
             check(f.Step() == SpeedInputAction.Cancel && f.Scale == 1f && !f.State.Active, "hold release returns directly to 1x");
             f.Keys.Add(KeyCode.F9);
             f.Down.Add(KeyCode.F9);
             check(f.Step() == SpeedInputAction.Hold, "first new press after observed release can acquire again");
         }
+        foreach (bool startFromCycle in new[] { false, true })
+        {
+            var f = new Frames { Maximum = 4, Requested = 8 };
+            if (startFromCycle)
+            {
+                f.Down.Add(KeyCode.F7);
+                check(f.Step() == SpeedInputAction.Cycle && f.Scale == 2f, "cycle starts at 2x before hold override");
+                check(f.Step() == SpeedInputAction.Cycle && f.Scale == 4f, "cycle reaches configured 4x before hold override");
+                f.Down.Clear();
+            }
+            f.Keys.Add(KeyCode.F9); f.Down.Add(KeyCode.F9);
+            check(f.Step() == SpeedInputAction.Hold && f.Scale == 8f,
+                "cycle cap 4 permits hold 8 from " + (startFromCycle ? "cycle 4" : "normal speed"));
+            f.Down.Clear();
+            foreach (int cycleMaximum in new[] { 2, 8, 4 })
+            {
+                f.Maximum = cycleMaximum;
+                check(f.Step() == SpeedInputAction.None && f.Scale == 8f && f.State.Active,
+                    "changing cycle maximum to " + cycleMaximum + " does not cancel or lower active hold 8");
+            }
+            f.Keys.Clear();
+            check(f.Step() == SpeedInputAction.Cancel && f.Scale == 1f, "independent hold release goes directly to 1x");
+            f.Down.Add(KeyCode.F7);
+            foreach (int expected in new[] { 2, 4, 1, 2, 4, 1 })
+                check(f.Step() == SpeedInputAction.Cycle && f.Scale == expected,
+                    "hold 8 never leaks into cycle cap 4 sequence at " + expected);
+        }
+        var cycleLimit = new Frames { Maximum = 4 };
+        cycleLimit.Down.Add(KeyCode.F7); cycleLimit.Step(); cycleLimit.Step(); cycleLimit.Down.Clear();
+        cycleLimit.Maximum = 2;
+        check(cycleLimit.Step() == SpeedInputAction.Cancel && cycleLimit.Scale == 1f,
+            "lowering cycle ceiling below active cycle speed still cancels cycle ownership");
+
         foreach (int toggled in new[] { 2, 4, 8 })
         {
             var f = new Frames();
@@ -74,7 +107,7 @@ internal static class HoldChecks
             f.Blocked = null; f.Scale = 1f; f.Effective = 8; f.Focused = true; f.Keys.Add(KeyCode.LeftControl); f.Down.Clear();
             check(f.Step() == SpeedInputAction.None && !f.Speed.Active, unavailable + " press does not queue a later hold activation");
         }
-        var limit = new Frames { Requested = 8 };
+        var limit = new Frames { Requested = 8, Maximum = 4 };
         limit.Keys.Add(KeyCode.F9); limit.Down.Add(KeyCode.F9); limit.Step(); limit.Down.Clear();
         limit.Effective = 2;
         check(limit.Step() == SpeedInputAction.None && limit.Scale == 8f, "active hold overrides movement limit");
@@ -111,7 +144,7 @@ internal static class HoldChecks
         foreach (int requested in new[] { 2, 4, 8 })
         foreach (string end in new[] { "release", "reset", "late-error", "policy", "external" })
         {
-            var f = new Frames { Requested = requested };
+            var f = new Frames { Requested = requested, Maximum = 4 };
             f.Keys.Add(KeyCode.F9); f.Down.Add(KeyCode.F9); f.Step(); f.Down.Clear();
             f.Autosave.Begin(true);
             check(f.Autosave.TryEnterSave(), "held speed enters one permitted autosave prefix");

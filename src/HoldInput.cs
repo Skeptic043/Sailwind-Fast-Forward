@@ -11,7 +11,7 @@ namespace SailwindFastForward
         private Phase phase;
         private bool configured;
         private KeyboardShortcut previousHold;
-        private int previousSpeed, previousMaximum;
+        private int previousSpeed;
         private bool sampledMainHeld;
         internal bool Active => phase == Phase.Active;
 
@@ -30,12 +30,10 @@ namespace SailwindFastForward
             bool mainHeld = hold.MainKey != KeyCode.None && getKey(hold.MainKey);
             sampledMainHeld = mainHeld;
             bool chordHeld = HotkeyInput.IsHeld(hold.MainKey, hold.Modifiers, getKey);
-            bool changed = configured && (!previousHold.Equals(hold) || previousSpeed != holdSpeed ||
-                previousMaximum != maximum);
+            bool changed = configured && (!previousHold.Equals(hold) || previousSpeed != holdSpeed);
             configured = true;
             previousHold = hold;
             previousSpeed = holdSpeed;
-            previousMaximum = maximum;
 
             if (phase == Phase.Suppressed && !mainHeld) phase = Phase.Idle;
             if (focused && HotkeyInput.IsDown(reset.MainKey, reset.Modifiers, getKeyDown, getKey))
@@ -47,13 +45,13 @@ namespace SailwindFastForward
             }
             if (blocked != null) return Cancel(cancel, blocked);
             if (speed.Active && current != speed.SelectedSpeed) return Cancel(cancel, "timescale changed externally");
-            if (speed.SelectedSpeed > maximum) return Cancel(cancel, "configured maximum lowered");
+            if (!Active && speed.SelectedSpeed > maximum) return Cancel(cancel, "configured maximum lowered");
             if (changed && (Active || mainHeld)) return Cancel(cancel, "hold settings changed");
             if (Active)
             {
                 if (!chordHeld) return Cancel(cancel, "hold released");
                 // An intentional hold overrides ordinary movement/inventory limits.
-                return speed.TryLimit(current, Math.Min(holdSpeed, maximum))
+                return speed.TryLimit(current, holdSpeed)
                     ? SpeedInputAction.Limit : SpeedInputAction.None;
             }
             if (!focused)
@@ -65,7 +63,7 @@ namespace SailwindFastForward
             {
                 if (phase == Phase.Idle && chordHeld && getKeyDown(hold.MainKey))
                 {
-                    int requested = Math.Min(holdSpeed, maximum);
+                    int requested = holdSpeed;
                     if (speed.TrySelect(current, requested))
                     {
                         phase = Phase.Active;

@@ -3,7 +3,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <AssemblyName>SailwindFastForward</AssemblyName>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GameDir Condition="'$(GameDir)' == ''">C:\Steam Games\steamapps\common\Sailwind</GameDir>
     <BepInExCore Condition="'$(BepInExCore)' == ''">$(MSBuildThisFileDirectory)..\.local\references</BepInExCore>

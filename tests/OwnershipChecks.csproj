@@ -10,7 +10,8 @@
     <Compile Include="..\src\SpeedOwnership.cs" Link="SpeedOwnership.cs" />
     <Compile Include="..\src\HotkeyInput.cs" Link="HotkeyInput.cs" />
     <Compile Include="..\src\HoldInput.cs" Link="HoldInput.cs" />
-    <Compile Include="..\src\GameCompatibility.cs" Link="GameCompatibility.cs" />
+    <Compile Include="..\src\SaveContinuation.cs" Link="SaveContinuation.cs" />
+    <Compile Include="..\src\SaveCoroutine.cs" Link="SaveCoroutine.cs" />
     <Compile Include="..\src\SaveErrorBoundary.cs" Link="SaveErrorBoundary.cs" />
     <Compile Include="..\src\PluginSettings.cs" Link="PluginSettings.cs" />
     <Compile Include="..\src\ShortcutSetting.cs" Link="ShortcutSetting.cs" />

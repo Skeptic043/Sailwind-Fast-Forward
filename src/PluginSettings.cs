@@ -36,10 +36,10 @@ namespace SailwindFastForward
                 "Show the active fast-forward speed.");
 
             MaxSpeed = config.Bind("Simulation", "MaxSpeed", 4,
-                new ConfigDescription("Maximum fast-forward speed for cycling and holding.",
+                new ConfigDescription("Maximum fast-forward speed for cycling. HoldSpeed is independent of this limit.",
                     new AcceptableValueList<int>(2, 4, 8)));
             HoldSpeed = config.Bind("Simulation", "HoldSpeed", 4,
-                new ConfigDescription("Speed requested while holding HoldHotkey, bounded by MaxSpeed. Holding ignores movement and inventory limits.",
+                new ConfigDescription("Fast-forward speed while holding HoldHotkey, independent of MaxSpeed. Holding ignores movement and inventory limits.",
                     new AcceptableValueList<int>(2, 4, 8)));
             MovementInventoryMaxSpeed = config.Bind("Simulation", "MovementInventoryMaxSpeed", 2,
                 new ConfigDescription("Cycle-mode speed limit while moving or viewing inventory, also bounded by MaxSpeed. Holding ignores this limit. 1 turns cycle-mode fast-forward off. 8 adds no lower limit. Ending the activity does not raise speed automatically.",

@@ -312,8 +312,7 @@ if (args.Contains("--config-input-only"))
 
 // Read installed game IL without executing Unity; verify the exact patched call site.
 var saveMethod = typeof(SaveLoadManager).GetMethod("SaveGame", new[] { typeof(bool) });
-GameCompatibility.RequireSupported(typeof(SaveLoadManager).Assembly.Location);
-Check(!GameCompatibility.IsSupported(new MemoryStream(new byte[] { 1, 2, 3 })), "unverified game assembly bytes fail compatibility guard");
+CompatibilityChecks.Run(Check);
 var replacement = typeof(SaveCallFixture).GetMethod(nameof(SaveCallFixture.Autosave));
 // Cecil reads game IL without invoking Harmony's Mono-specific runtime helpers on .NET 10.
 using var gameAssembly = Mono.Cecil.AssemblyDefinition.ReadAssembly(typeof(SaveLoadManager).Assembly.Location);
@@ -362,14 +361,10 @@ Check(labeled[originalCalls[2]].labels.Contains(label) && labeled[originalCalls[
     "autosave replacement retains branch labels and exception boundaries");
 foreach (int count in new[] { 0, 1, 2, 4 })
 {
-    bool rejected = false;
-    try
-    {
-        AutosavePatch.Rewrite(Enumerable.Range(0, count).Select(_ => new CodeInstruction(OpCodes.Callvirt, saveMethod)),
-            saveMethod, replacement).ToList();
-    }
-    catch (InvalidOperationException) { rejected = true; }
-    Check(rejected, $"unexpected {count}-save layout is rejected instead of patching another save");
+    var changed = Enumerable.Range(0, count).Select(_ => new CodeInstruction(OpCodes.Callvirt, saveMethod)).ToList();
+    var retained = AutosavePatch.Rewrite(changed, saveMethod, replacement, out string failure).ToList();
+    Check(failure != null && retained.SequenceEqual(changed),
+        $"unexpected {count}-save layout returns every original instruction without patching another save");
 }
 foreach (string mutation in new[] { "reorder", "branch", "field", "call", "timer-argument" })
 {
@@ -387,10 +382,9 @@ foreach (string mutation in new[] { "reorder", "branch", "field", "call", "timer
         case "call": changed.First(instruction => instruction.operand is System.Reflection.MethodInfo m && m.Name == "get_deltaTime").operand = saveMethod; break;
         case "timer-argument": changed[originalCalls[2] - 1].opcode = OpCodes.Ldc_I4_0; break;
     }
-    bool rejected = false;
-    try { AutosavePatch.Rewrite(changed, saveMethod, replacement).ToList(); }
-    catch (InvalidOperationException) { rejected = true; }
-    Check(rejected, "semantic Update guard rejects " + mutation + " mutation");
+    var retained = AutosavePatch.Rewrite(changed, saveMethod, replacement, out string failure).ToList();
+    Check(failure != null && retained.SequenceEqual(changed),
+        "semantic Update guard retains original IL for " + mutation + " mutation");
 }
 Console.WriteLine($"{checks} ownership/input/config/autosave checks passed. Game IL is inspected; Unity gameplay is not executed.");
 
@@ -427,6 +421,17 @@ static class ConfigurationChecks
         }
         check(generated.Contains("# Acceptable values: 2, 4, 8") && generated.Contains("# Acceptable values: 1, 2, 4, 8"),
             "real serializer documents both supported speed limits");
+
+        string independentPath = Path.Combine(scratch, "independent-cycle-hold.cfg");
+        File.WriteAllText(independentPath, "[Simulation]\nMaxSpeed = 4\nHoldSpeed = 8\nMovementInventoryMaxSpeed = 2\n");
+        var independentFile = new ConfigFile(independentPath, false);
+        var independent = new PluginSettings(independentFile);
+        independentFile.Save();
+        var independentReloaded = new PluginSettings(new ConfigFile(independentPath, false));
+        check(independent.MaxSpeed.Value == 4 && independent.HoldSpeed.Value == 8 &&
+            independentReloaded.MaxSpeed.Value == 4 && independentReloaded.HoldSpeed.Value == 8 &&
+            independentReloaded.MovementInventoryMaxSpeed.Value == 2,
+            "existing cycle 4 and hold 8 settings remain independent after real config save/reload");
 
         string oldPath = Path.Combine(scratch, "existing-custom.cfg");
         File.WriteAllText(oldPath, "[Controls]\nHotkey = F6 + LeftControl\nLegacyControl = retained\n\n" +

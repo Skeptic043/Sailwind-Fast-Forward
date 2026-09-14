@@ -15,7 +15,31 @@ namespace SailwindFastForward
         private static FieldInfo Field(Type type, string name) => type.GetField(name, Members);
         internal static IEnumerable<CodeInstruction> Rewrite(IEnumerable<CodeInstruction> instructions,
             MethodInfo saveMethod, MethodInfo autosaveMethod)
+            => Rewrite(instructions, saveMethod, autosaveMethod, out _);
+
+        internal static IEnumerable<CodeInstruction> Rewrite(IEnumerable<CodeInstruction> instructions,
+            MethodInfo saveMethod, MethodInfo autosaveMethod, out string failure)
         {
+            var original = instructions.ToList();
+            try
+            {
+                var rewritten = RewriteVerified(original, saveMethod, autosaveMethod);
+                failure = null;
+                return rewritten;
+            }
+            catch (Exception error)
+            {
+                failure = error.Message;
+                // No partially modified IL escapes a failed semantic check.
+                return original;
+            }
+        }
+
+        private static IEnumerable<CodeInstruction> RewriteVerified(IEnumerable<CodeInstruction> instructions,
+            MethodInfo saveMethod, MethodInfo autosaveMethod)
+        {
+            if (saveMethod == null || autosaveMethod == null)
+                throw new MissingMethodException("Save wrapper methods are unavailable.");
             var code = instructions.Select(instruction => new CodeInstruction(instruction)).ToList();
             var expected = ExpectedUpdate(saveMethod);
             if (code.Count != expected.Length)

@@ -15,11 +15,11 @@ internal static class HoldOverrideChecks
             var frame = new Frames { Requested = requested, Maximum = maximum, ActivityMaximum = activity };
             frame.Keys.UnionWith(new[] { KeyCode.F9, KeyCode.W, KeyCode.Mouse0 });
             frame.Down.Add(KeyCode.F9);
-            check(frame.Step() == SpeedInputAction.Hold && frame.Scale == Math.Min(requested, maximum),
-                $"hold {requested}x overrides activity {activity}x within maximum {maximum}x");
+            check(frame.Step() == SpeedInputAction.Hold && frame.Scale == requested,
+                $"hold {requested}x overrides activity {activity}x independently of cycle maximum {maximum}x");
             frame.Down.Clear();
             frame.ActivityMaximum = activity == 1 ? 8 : 1;
-            check(frame.Step() == SpeedInputAction.None && frame.State.Active && frame.Scale == Math.Min(requested, maximum),
+            check(frame.Step() == SpeedInputAction.None && frame.State.Active && frame.Scale == requested,
                 "activity setting changes neither cancel nor lower active hold");
             frame.Keys.Remove(KeyCode.F9);
             check(frame.Step() == SpeedInputAction.Cancel && frame.Scale == 1f && !frame.State.Active,
@@ -33,14 +33,13 @@ internal static class HoldOverrideChecks
         toggled.Keys.Clear(); toggled.Down.Clear(); toggled.Step();
         check(toggled.Scale == 1f, "override release does not restore previously latched speed");
 
-        foreach (string boundary in new[] { "reset", "pause", "loading", "autosave", "external", "hold-speed", "maximum", "binding" })
+        foreach (string boundary in new[] { "reset", "pause", "loading", "autosave", "external", "hold-speed", "binding" })
         {
             var frame = new Frames { ActivityMaximum = 1 };
             frame.Keys.Add(KeyCode.F9); frame.Down.Add(KeyCode.F9); frame.Step(); frame.Down.Clear();
             if (boundary == "reset") frame.Down.Add(KeyCode.F8);
             else if (boundary == "external") frame.Scale = 16f;
             else if (boundary == "hold-speed") frame.Requested = 8;
-            else if (boundary == "maximum") frame.Maximum = 2;
             else if (boundary == "binding")
             {
                 frame.Binding = new KeyboardShortcut(KeyCode.F10);
@@ -61,6 +60,17 @@ internal static class HoldOverrideChecks
             check(frame.Step() == SpeedInputAction.Hold,
                 boundary + " permits an intentional new override after release");
         }
+        var independent = new Frames { Requested = 8, Maximum = 4, ActivityMaximum = 1 };
+        independent.Keys.Add(KeyCode.F9); independent.Down.Add(KeyCode.F9); independent.Step(); independent.Down.Clear();
+        independent.Maximum = 2;
+        check(independent.Step() == SpeedInputAction.None && independent.Scale == 8f && independent.State.Active,
+            "cycle ceiling edit leaves active hold unchanged despite activity cap one");
+        independent.Requested = 4;
+        check(independent.Step() == SpeedInputAction.Cancel && independent.Scale == 1f,
+            "HoldSpeed edit still cancels after an independent cycle ceiling edit");
+        check(independent.Step() == SpeedInputAction.None && independent.Scale == 1f,
+            "HoldSpeed edit cannot reacquire without release and a fresh press");
+
         var cycle = new Frames { ActivityMaximum = 1 };
         cycle.Down.Add(KeyCode.F7);
         check(cycle.Step() == SpeedInputAction.None && cycle.Scale == 1f, "ordinary cycling still respects activity cap one");
@@ -70,10 +80,10 @@ internal static class HoldOverrideChecks
         check(suppressed.Step() == SpeedInputAction.Limit && suppressed.Scale == 1f,
             "suppressed hold input does not turn latched speed into an override");
 
-        var focus = new Frames { ActivityMaximum = 1 };
+        var focus = new Frames { ActivityMaximum = 1, Maximum = 4, Requested = 8 };
         focus.Keys.Add(KeyCode.F9); focus.Down.Add(KeyCode.F9); focus.Step(); focus.Down.Clear();
         focus.Focused = false;
-        check(focus.Step() == SpeedInputAction.None && focus.State.Active && focus.Scale == 4f,
+        check(focus.Step() == SpeedInputAction.None && focus.State.Active && focus.Scale == 8f,
             "active hold continues while physical chord is reported held despite focus loss");
         focus.Keys.Clear();
         check(focus.Step() == SpeedInputAction.Cancel && focus.Scale == 1f,
@@ -98,7 +108,7 @@ internal static class HoldOverrideChecks
         foreach (int requested in new[] { 2, 4, 8 })
         foreach (string ending in new[] { "release", "reset", "pause", "loading", "external", "early-error", "late-error" })
         {
-            var manual = new Frames { Requested = requested, ActivityMaximum = 1 };
+            var manual = new Frames { Requested = requested, ActivityMaximum = 1, Maximum = 4 };
             manual.Keys.Add(KeyCode.F9); manual.Down.Add(KeyCode.F9); manual.Step(); manual.Down.Clear();
             check(manual.BeginManualSave(), "active owned hold permits a manual save at " + requested);
             if (ending == "early-error")
