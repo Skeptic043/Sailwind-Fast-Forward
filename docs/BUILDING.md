@@ -1,13 +1,13 @@
 # Building from source
 
-The local repository is `E:\Projects\Unity\Sailwind\FastForward`. Run development commands there. The parent Sailwind folder holds independent sibling mods and shared game research. It is not this mod's Git repository.
+Run development commands from the root of your Fast Forward clone.
 
 Requires Windows PowerShell, the .NET 10 SDK (for the check executable), an installed Mono version of Sailwind and BepInEx 5. The plugin itself targets .NET Standard 2.0.
 
 Pass your game installation directory and the BepInEx `core` directory containing `BepInEx.dll`, `0Harmony.dll`, `Mono.Cecil.dll` and `MonoMod.Utils.dll` (used by the game IL and real configuration checks):
 
 ```powershell
-./Build.ps1 -GameDir 'D:\Games\Sailwind' -BepInExCore 'D:\ModProfile\BepInEx\core'
+./Build.ps1 -GameDir 'C:\path\to\Sailwind' -BepInExCore 'C:\path\to\BepInEx\core'
 ```
 
 This builds the plugin, runs the behavior checks and copies the DLL to `artifacts/build/<version>/`. Local dependencies, build outputs and game assemblies are excluded from Git. Game and loader DLLs are references only. They are not distributed.
@@ -19,7 +19,7 @@ There is no game-version or assembly-hash allowlist. Required pause, sleep and s
 To build and verify the distributable ZIP and source ZIP:
 
 ```powershell
-./Package.ps1 -GameDir 'D:\Games\Sailwind' -BepInExCore 'D:\ModProfile\BepInEx\core'
+./Package.ps1 -GameDir 'C:\path\to\Sailwind' -BepInExCore 'C:\path\to\BepInEx\core'
 ```
 
 Packages and SHA-256 checksums appear in `artifacts/release/`. Packaging uses an explicit file list and verifies every ZIP entry against its source file. It checks metadata, versions, required files and the 256x256 PNG icon. The package does not contain user configuration, logs or game/loader assemblies.

@@ -3,3 +3,32 @@
 **/obj/
 artifacts/
 docs/INSPECTION.md
+
+# Local development and private workflow
+AGENTS.md
+AGENTS.override.md
+.agents/
+.codex/
+.claude/
+.project/
+PLAN.md
+PLANNING.md
+BACKLOG.md
+HANDOFF.md
+SESSION.md
+WORKLOG.md
+docs/RELEASE_REVIEW.md
+
+# Local configuration and generated state
+.env
+.env.*
+!.env.example
+.vs/
+.idea/
+*.user
+*.suo
+*.log
+*.tmp
+*.dmp
+Thumbs.db
+.DS_Store
