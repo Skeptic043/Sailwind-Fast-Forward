@@ -2,13 +2,14 @@ using System;
 using System.Reflection;
 using System.Collections.Generic;
 using BepInEx;
+using BepInEx.Bootstrap;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace SailwindFastForward
 {
-    [BepInPlugin(Id, "Sailwind Fast Forward", "1.1.2")]
+    [BepInPlugin(Id, "Sailwind Fast Forward", "1.2.0")]
     [BepInProcess("Sailwind.exe")]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -25,7 +26,8 @@ namespace SailwindFastForward
         private Harmony harmony;
         private FieldInfo saveBusy;
         private bool ready;
-        private GUIStyle indicatorStyle;
+        private SpeedIndicator indicator;
+        private ConfigurationManagerWindow configurationManager;
         private static Plugin instance;
 
         private void Awake()
@@ -36,6 +38,10 @@ namespace SailwindFastForward
             saveError = () => Cancel("save error");
             autosave = new SaveContinuation(() => Cancel("save continuation unavailable"));
             settings = new PluginSettings(Config, message => Logger.LogWarning(message));
+            indicator = new SpeedIndicator(message => Logger.LogWarning(message));
+            configurationManager = new ConfigurationManagerWindow(() =>
+                Chainloader.PluginInfos.TryGetValue(ConfigurationManagerWindow.PluginId, out var plugin) && plugin.Instance
+                    ? plugin.Instance : null, message => Logger.LogWarning(message));
             try
             {
                 saveBusy = AccessTools.Field(typeof(SaveLoadManager), "busy");
@@ -150,7 +156,9 @@ namespace SailwindFastForward
             if (GameState.recovering && HoldPolicy.Blocks(HoldBoundary.Recovery, holdIntent)) return "recovery";
             if (GameState.currentShipyard && HoldPolicy.Blocks(HoldBoundary.Shipyard, holdIntent)) return "shipyard";
             if (EconomyUI.instance && EconomyUI.instance.uiActive && HoldPolicy.Blocks(HoldBoundary.Economy, holdIntent)) return "economy menu";
-            if (GameState.inCursorMenu && !InventoryOpen() && HoldPolicy.Blocks(HoldBoundary.CursorMenu, holdIntent)) return "cursor menu";
+            if (GameState.inCursorMenu && ConfigurationManagerWindow.BlocksCursorMenu(true, InventoryOpen(),
+                configurationManager.IsOpen(), NativeCursorMenuOpen()) &&
+                HoldPolicy.Blocks(HoldBoundary.CursorMenu, holdIntent)) return "cursor menu";
             if (!SaveLoadManager.instance) return "save unavailable";
             if (autosave.BlocksBusySave((bool)saveBusy.GetValue(SaveLoadManager.instance), settings.CancelOnAutosave.Value,
                 CanContinueHold())) return "save busy";
@@ -165,6 +173,12 @@ namespace SailwindFastForward
             HardBlockReason() != null);
 
         private static bool InventoryOpen() => PlayerNeedsUI.instance && PlayerNeedsUI.instance.IsActive();
+
+        // These native cursor menus have no separate boundary above. An open config window
+        // must not exempt a mission list, chart, or currency exchange behind it.
+        private static bool NativeCursorMenuOpen() => GameState.inPortMissionList ||
+            (MapTableCamera.instance && MapTableCamera.instance.currentMap) ||
+            (CurrencyExchangeUI.instance && CurrencyExchangeUI.instance.uiActive);
 
         private static bool MovementRequested()
         {
@@ -184,6 +198,8 @@ namespace SailwindFastForward
         private void Update()
         {
             if (!ready) return;
+            indicator.Update(!GameState.playing || GameState.currentlyLoading ||
+                GameState.justStarted || GameState.changingStartRegion);
             try
             {
                 string reason = BlockReason();
@@ -244,15 +260,21 @@ namespace SailwindFastForward
         private void OnGUI()
         {
             if (!ready || !speed.Active || Time.timeScale != speed.SelectedSpeed || !settings.ShowIndicator.Value) return;
-            if (indicatorStyle == null)
-                indicatorStyle = new GUIStyle(GUI.skin.box) { fontSize = 16, alignment = TextAnchor.MiddleCenter };
-            GUI.Box(new Rect(Screen.width - 76, 16, 60, 28), $"{speed.SelectedSpeed}\u00d7", indicatorStyle);
+            indicator.Draw(speed.SelectedSpeed, settings.IndicatorScale.Value, settings.IndicatorBackground.Value);
         }
 
-        private void OnActiveSceneChanged(Scene previous, Scene next) => Cancel("active scene changed");
+        private void OnActiveSceneChanged(Scene previous, Scene next)
+        {
+            indicator?.Invalidate();
+            Cancel("active scene changed");
+        }
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (mode == LoadSceneMode.Single) Cancel("world scene loaded");
+            if (mode == LoadSceneMode.Single)
+            {
+                indicator?.Invalidate();
+                Cancel("world scene loaded");
+            }
         }
         private void OnApplicationQuit() => Cancel("quit");
         private void OnDisable() => Cancel("plugin disabled");
@@ -260,6 +282,7 @@ namespace SailwindFastForward
         private void OnDestroy()
         {
             ready = false;
+            indicator?.Dispose();
             Cancel("plugin destroyed");
             SceneManager.activeSceneChanged -= OnActiveSceneChanged;
             SceneManager.sceneLoaded -= OnSceneLoaded;

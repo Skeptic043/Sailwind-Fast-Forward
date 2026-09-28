@@ -14,6 +14,8 @@
     <Compile Include="..\src\SaveCoroutine.cs" Link="SaveCoroutine.cs" />
     <Compile Include="..\src\SaveErrorBoundary.cs" Link="SaveErrorBoundary.cs" />
     <Compile Include="..\src\PluginSettings.cs" Link="PluginSettings.cs" />
+    <Compile Include="..\src\IndicatorScaleRange.cs" Link="IndicatorScaleRange.cs" />
+    <Compile Include="..\src\ConfigurationManagerWindow.cs" Link="ConfigurationManagerWindow.cs" />
     <Compile Include="..\src\ShortcutSetting.cs" Link="ShortcutSetting.cs" />
     <Compile Include="..\src\ShortcutParser.cs" Link="ShortcutParser.cs" />
     <Compile Include="..\src\HoldPolicy.cs" Link="HoldPolicy.cs" />

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0
+
+### New
+- The speed indicator display can now be scaled from 0.5x to 5x.
+- Added the option to choose from a plain, scroll, or no background for the speed indicator.
+
+### Changed
+- The speed indicator now uses Sailwind's native font.
+
 ## 1.1.2
 
 - Cycle and hold speeds are now independent. Keep a 1x/2x/4x cycle and use 8x while holding, or choose any other supported combination.

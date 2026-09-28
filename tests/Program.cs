@@ -162,6 +162,8 @@ Check(Paths.ConfigPath.StartsWith(configScratch + Path.DirectorySeparatorChar, S
     "BepInEx config paths are isolated in test scratch");
 ConfigurationChecks.Run(configScratch, Check);
 ShortcutChecks.Run(configScratch, Check);
+IndicatorSettingsChecks.Run(configScratch, Check);
+ConfigurationManagerChecks.Run(Check);
 HoldChecks.Run(Check);
 HoldOverrideChecks.Run(Check);
 AutosaveChecks.Run(Check);

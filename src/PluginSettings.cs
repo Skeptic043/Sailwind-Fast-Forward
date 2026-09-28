@@ -11,6 +11,8 @@ namespace SailwindFastForward
         internal ShortcutSetting ResetHotkey { get; }
         internal ShortcutSetting HoldHotkey { get; }
         internal ConfigEntry<bool> ShowIndicator { get; }
+        internal ConfigEntry<float> IndicatorScale { get; }
+        internal ConfigEntry<IndicatorBackground> IndicatorBackground { get; }
         internal ConfigEntry<int> MaxSpeed { get; }
         internal ConfigEntry<int> HoldSpeed { get; }
         internal ConfigEntry<int> MovementInventoryMaxSpeed { get; }
@@ -34,6 +36,10 @@ namespace SailwindFastForward
 
             ShowIndicator = config.Bind("Display", "ShowIndicator", true,
                 "Show the active fast-forward speed.");
+            IndicatorScale = config.Bind("Display", "IndicatorScale", 1f,
+                new ConfigDescription("Size of the speed indicator. 1 keeps the original size. Values snap to the nearest 0.5 step.",
+                    new IndicatorScaleRange()));
+            IndicatorBackground = BindIndicatorBackground(config);
 
             MaxSpeed = config.Bind("Simulation", "MaxSpeed", 4,
                 new ConfigDescription("Maximum fast-forward speed for cycling. HoldSpeed is independent of this limit.",
@@ -46,6 +52,30 @@ namespace SailwindFastForward
                     new AcceptableValueList<int>(1, 2, 4, 8)));
             CancelOnAutosave = config.Bind("Simulation", "CancelOnAutosave", false,
                 "Turn off fast-forward when an autosave starts, including while holding. When disabled, active fast-forward continues during autosaves. Loading always cancels fast-forward. Manual saves cancel cycle mode but allow an active hold to continue.");
+        }
+
+        private static ConfigEntry<IndicatorBackground> BindIndicatorBackground(ConfigFile config)
+        {
+            const string description = "Background for the speed indicator. Simple keeps the original box. Scroll uses Sailwind's parchment. None shows only the speed.";
+            var key = new ConfigDefinition("Display", "IndicatorBackground");
+            if (config.TryGetEntry<IndicatorBackground>(key, out var existing)) return existing;
+            bool saveOnSet = config.SaveOnConfigSet;
+            try
+            {
+                // Read only this entry as text before enum parsing so the trial
+                // build's Current label upgrades without a parser warning.
+                config.SaveOnConfigSet = false;
+                string raw = config.Bind(key, "Simple").Value;
+                config.Remove(key);
+                var setting = config.Bind(key, SailwindFastForward.IndicatorBackground.Simple, new ConfigDescription(description));
+                setting.SetSerializedValue(string.Equals(raw.Trim(), "Current", StringComparison.OrdinalIgnoreCase) ? "Simple" : raw);
+                return setting;
+            }
+            finally
+            {
+                config.SaveOnConfigSet = saveOnSet;
+                if (saveOnSet) config.Save();
+            }
         }
     }
 }

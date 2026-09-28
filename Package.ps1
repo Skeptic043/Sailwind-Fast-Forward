@@ -46,8 +46,8 @@ foreach ($path in @('.gitignore', '.gitattributes', 'manifest.json', 'README.md'
     'LICENSE', 'icon.png', 'assets/icon.svg', 'tools/Render-Icon.ps1', 'Build.ps1', 'Package.ps1',
     'Directory.Build.props', 'docs/BUILDING.md',
     'src/AutosaveState.cs', 'src/AutosavePatch.cs', 'src/SaveErrorBoundary.cs', 'src/SaveContinuation.cs', 'src/SaveCoroutine.cs', 'src/Plugin.cs', 'src/PluginSettings.cs', 'src/SpeedOwnership.cs', 'src/HotkeyInput.cs', 'src/HoldInput.cs', 'src/BackgroundExecution.cs',
-    'src/ShortcutParser.cs', 'src/ShortcutSetting.cs', 'src/HoldPolicy.cs',
-    'src/SailwindFastForward.csproj', 'tests/Program.cs', 'tests/HoldChecks.cs', 'tests/HoldOverrideChecks.cs', 'tests/ShortcutChecks.cs', 'tests/AutosaveChecks.cs', 'tests/HarmonyNormalizationChecks.cs', 'tests/CompatibilityChecks.cs', 'tests/OwnershipChecks.csproj')) {
+    'src/ShortcutParser.cs', 'src/ShortcutSetting.cs', 'src/HoldPolicy.cs', 'src/SpeedIndicator.cs', 'src/IndicatorScaleRange.cs', 'src/ConfigurationManagerWindow.cs',
+    'src/SailwindFastForward.csproj', 'tests/Program.cs', 'tests/HoldChecks.cs', 'tests/HoldOverrideChecks.cs', 'tests/ShortcutChecks.cs', 'tests/IndicatorSettingsChecks.cs', 'tests/ConfigurationManagerChecks.cs', 'tests/AutosaveChecks.cs', 'tests/HarmonyNormalizationChecks.cs', 'tests/CompatibilityChecks.cs', 'tests/OwnershipChecks.csproj')) {
     $sourceFiles[$path] = Join-Path $PSScriptRoot $path
 }
 $utf8 = [Text.UTF8Encoding]::new($false, $true)
