@@ -8,8 +8,8 @@ internal static class HoldChecks
 {
     internal static void Run(Action<bool, string> check)
     {
-        foreach (int requested in new[] { 2, 4, 8 })
-        foreach (int maximum in new[] { 2, 4, 8 })
+        foreach (int requested in new[] { 2, 4, 8, 16, 32 })
+        foreach (int maximum in new[] { 2, 4, 8, 16, 32 })
         {
             var f = new Frames { Requested = requested, Maximum = maximum };
             f.Keys.UnionWith(new[] { KeyCode.F9, KeyCode.W, KeyCode.Mouse0 });
@@ -57,9 +57,9 @@ internal static class HoldChecks
         check(cycleLimit.Step() == SpeedInputAction.Cancel && cycleLimit.Scale == 1f,
             "lowering cycle ceiling below active cycle speed still cancels cycle ownership");
 
-        foreach (int toggled in new[] { 2, 4, 8 })
+        foreach (int toggled in new[] { 2, 4, 8, 16, 32 })
         {
-            var f = new Frames();
+            var f = new Frames { Maximum = 32 };
             f.Speed.TrySelect(1f, toggled);
             f.Scale = toggled;
             f.Keys.Add(KeyCode.F9); f.Down.Add(KeyCode.F9);
@@ -141,7 +141,7 @@ internal static class HoldChecks
         rebind.Binding = new KeyboardShortcut(KeyCode.F10); rebind.Keys.Add(KeyCode.F10); rebind.Down.Clear();
         check(rebind.Step() == SpeedInputAction.Cancel && rebind.Scale == 1f, "rebinding cancels an active hold");
         check(rebind.Step() == SpeedInputAction.None, "held rebound key cannot acquire without release/new press");
-        foreach (int requested in new[] { 2, 4, 8 })
+        foreach (int requested in new[] { 2, 4, 8, 16, 32 })
         foreach (string end in new[] { "release", "reset", "late-error", "policy", "external" })
         {
             var f = new Frames { Requested = requested, Maximum = 4 };
@@ -155,7 +155,8 @@ internal static class HoldChecks
             if (end == "release") f.Keys.Clear();
             if (end == "reset") f.Down.Add(KeyCode.F8);
             if (end == "policy") f.CancelOnAutosave = true;
-            if (end == "external") f.Scale = 16f;
+            float externalScale = requested == 16 ? 32f : 16f;
+            if (end == "external") f.Scale = externalScale;
             if (end == "late-error")
             {
                 var error = new Exception("late save failure");
@@ -169,7 +170,7 @@ internal static class HoldChecks
             check(!f.Speed.Active && !f.State.Active && !f.Background && f.Autosave.BlocksBusySave(true),
                 end + " during autosave invalidates hold/save/background permission");
             check(f.Busy, "cancellation never writes vanilla busy");
-            if (end == "external") check(f.Scale == 16f, "autosave cancellation preserves externally owned speed");
+            if (end == "external") check(f.Scale == externalScale, "autosave cancellation preserves externally owned speed");
             f.Down.Clear(); f.Scale = 1f; f.CancelOnAutosave = false;
             f.Busy = false; f.Step();
             check(f.Scale == 1f && !f.Speed.Active, end + " save completion cannot write or reacquire speed");

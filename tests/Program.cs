@@ -19,13 +19,13 @@ void Check(bool condition, string name)
 
 var speed = new SpeedOwnership();
 Check(!speed.Release(2f), "unowned external 2x is not restored");
-foreach (float native in new[] { 0f, 0.5f, 2f, 4f, 16f, float.NaN, float.PositiveInfinity })
+foreach (float native in new[] { 0f, 0.5f, 2f, 4f, 16f, 32f, float.NaN, float.PositiveInfinity })
     Check(!speed.TryCycle(native, 2) && !speed.Active, "cannot acquire external/native scale " + native);
 Check(speed.TryCycle(1f, 2) && speed.Active, "normal gameplay permits acquisition");
 Check(!speed.TryCycle(1f, 2), "cannot acquire twice");
 Check(speed.Release(2f) && !speed.Active, "toggle-off restores owned 2x");
 Check(!speed.Release(2f), "shutdown is idempotent");
-foreach (float external in new[] { 0f, 1f, 0.5f, 4f, 16f })
+foreach (float external in new[] { 0f, 1f, 0.5f, 4f, 16f, 32f })
 {
     speed.TryCycle(1f, 2);
     Check(!speed.Release(external) && !speed.Active, "release preserves externally changed scale " + external);
@@ -82,12 +82,12 @@ Check(Hotkey(KeyCode.F8), "rebound shortcut works");
 // Exercise the production dispatcher; reset must run before limiting or cycling.
 var cycleShortcut = new KeyboardShortcut(KeyCode.F7);
 var resetShortcut = new KeyboardShortcut(KeyCode.F8);
-foreach (int owned in new[] { 1, 2, 4, 8 })
+foreach (int owned in new[] { 1, 2, 4, 8, 16, 32 })
 {
-    foreach (int cap in new[] { 1, 2, 4, 8 })
+    foreach (int cap in new[] { 1, 2, 4, 8, 16, 32 })
     {
         var resetting = new SpeedOwnership();
-        while (resetting.SelectedSpeed < owned) resetting.TryCycle(resetting.SelectedSpeed, 8);
+        while (resetting.SelectedSpeed < owned) resetting.TryCycle(resetting.SelectedSpeed, 32);
         pressed.Clear();
         pressed.UnionWith(new[] { KeyCode.F7, KeyCode.F8 });
         held.Clear();
@@ -105,7 +105,7 @@ foreach (int owned in new[] { 1, 2, 4, 8 })
             $"reset wins cycle and cap {cap} from {owned}x with unrelated controls held");
     }
 }
-foreach (float external in new[] { 0f, 0.5f, 1f, 2f, 4f, 16f, float.NaN })
+foreach (float external in new[] { 0f, 0.5f, 1f, 2f, 4f, 16f, 32f, float.NaN })
 {
     var resetting = new SpeedOwnership();
     while (resetting.SelectedSpeed < 8) resetting.TryCycle(resetting.SelectedSpeed, 8);
@@ -167,7 +167,7 @@ ConfigurationManagerChecks.Run(Check);
 HoldChecks.Run(Check);
 HoldOverrideChecks.Run(Check);
 AutosaveChecks.Run(Check);
-foreach (int maximum in new[] { 2, 4, 8 })
+foreach (int maximum in new[] { 2, 4, 8, 16, 32 })
 {
     var cycle = new SpeedOwnership();
     float current = 1f;
@@ -180,23 +180,23 @@ foreach (int maximum in new[] { 2, 4, 8 })
     Check(cycle.TryCycle(current, maximum) && cycle.SelectedSpeed == 1f && !cycle.Active,
         $"cycle wraps from {maximum}x to 1x");
 }
-foreach (int owned in new[] { 2, 4, 8 })
+foreach (int owned in new[] { 2, 4, 8, 16, 32 })
 {
-    foreach (float external in new[] { 0f, 1f, 0.5f, 2f, 4f, 8f, 16f, float.NaN })
+    foreach (float external in new[] { 0f, 1f, 0.5f, 2f, 4f, 8f, 16f, 32f, float.NaN })
     {
         var cycle = new SpeedOwnership();
-        while (cycle.SelectedSpeed < owned) cycle.TryCycle(cycle.SelectedSpeed, 8);
+        while (cycle.SelectedSpeed < owned) cycle.TryCycle(cycle.SelectedSpeed, 32);
         Check(cycle.Release(external) == (external == owned) && !cycle.Active && cycle.SelectedSpeed == 1f,
             $"release owned {owned}x at observed {external}x restores only own scale");
     }
     var menuCycle = new SpeedOwnership();
-    while (menuCycle.SelectedSpeed < owned) menuCycle.TryCycle(menuCycle.SelectedSpeed, 8);
+    while (menuCycle.SelectedSpeed < owned) menuCycle.TryCycle(menuCycle.SelectedSpeed, 32);
     float cachedForResume = menuCycle.Release(owned) ? 1f : owned;
     Check(cachedForResume == 1f, $"settings prefix prevents cached {owned}x resume");
     Check(menuCycle.TryCycle(1f, 8) && menuCycle.SelectedSpeed == 2f,
         $"after cancel from {owned}x, next explicit activation starts at 2x");
 }
-foreach (int invalidMaximum in new[] { -1, 0, 1, 3, 16 })
+foreach (int invalidMaximum in new[] { -1, 0, 1, 3, 12, 64 })
     Check(!new SpeedOwnership().TryCycle(1f, invalidMaximum), $"reject unsupported cap {invalidMaximum}");
 var stolen = new SpeedOwnership();
 stolen.TryCycle(1f, 8);
@@ -224,21 +224,21 @@ Check(!backgroundValue && backgroundWrites == 3, "release does not overwrite an 
 background.Enable();
 background.Restore();
 Check(!backgroundValue && backgroundWrites == 5, "fresh activation after shutdown still restores correctly");
-foreach (int owned in new[] { 1, 2, 4, 8 })
+foreach (int owned in new[] { 1, 2, 4, 8, 16, 32 })
 {
-    foreach (int cap in new[] { 1, 2, 4, 8 })
+    foreach (int cap in new[] { 1, 2, 4, 8, 16, 32 })
     {
         var limited = new SpeedOwnership();
-        while (limited.SelectedSpeed < owned) limited.TryCycle(limited.SelectedSpeed, 8);
+        while (limited.SelectedSpeed < owned) limited.TryCycle(limited.SelectedSpeed, 32);
         Check(limited.TryLimit(owned, cap) == (owned > cap) && limited.SelectedSpeed == Math.Min(owned, cap),
             $"activity cap {cap} lowers {owned}x only when needed");
         float result = limited.SelectedSpeed;
-        Check(!limited.TryLimit(result, 8) && limited.SelectedSpeed == result,
+        Check(!limited.TryLimit(result, 32) && limited.SelectedSpeed == result,
             $"ending activity never raises speed after {owned}x/cap {cap}");
         Check(!limited.TryLimit(result, cap), $"unchanged activity cap {cap} does not repeatedly write speed");
     }
 }
-foreach (float external in new[] { 0f, 1f, 2f, 4f, 16f, float.NaN })
+foreach (float external in new[] { 0f, 1f, 2f, 4f, 16f, 32f, float.NaN })
 {
     var limited = new SpeedOwnership();
     while (limited.SelectedSpeed < 8) limited.TryCycle(limited.SelectedSpeed, 8);
@@ -251,13 +251,13 @@ Check(activityCycle.TryLimit(8f, 2), "8x downsteps to 2x on movement/inventory e
 Check(activityCycle.TryCycle(2f, 2) && activityCycle.SelectedSpeed == 1f, "F7 while limited wraps 2x to normal");
 Check(activityCycle.TryCycle(1f, 2) && activityCycle.SelectedSpeed == 2f, "F7 while limited can enable permitted 2x");
 Check(activityCycle.TryCycle(2f, 8) && activityCycle.SelectedSpeed == 4f, "higher speed requires explicit cycle after activity ends");
-foreach (int invalidCap in new[] { -1, 0, 3, 16 })
+foreach (int invalidCap in new[] { -1, 0, 3, 12, 64 })
     Check(!activityCycle.TryLimit(4f, invalidCap), $"reject invalid activity cap {invalidCap}");
 // Model the real save's synchronous start and next-frame completion.
-foreach (int selected in new[] { 2, 4, 8 })
+foreach (int selected in new[] { 2, 4, 8, 16, 32 })
 {
     var savingSpeed = new SpeedOwnership();
-    while (savingSpeed.SelectedSpeed < selected) savingSpeed.TryCycle(savingSpeed.SelectedSpeed, 8);
+    while (savingSpeed.SelectedSpeed < selected) savingSpeed.TryCycle(savingSpeed.SelectedSpeed, 32);
     var saving = new AutosaveState();
     saving.Begin(keepFastForward: true); // CancelOnAutosave=false, FF active, not already busy
     Check(saving.TryEnterSave(), $"default autosave preserves owned {selected}x at save prefix");
@@ -294,7 +294,7 @@ autosaveState.Begin(true);
 autosaveState.Reset(); // save threw, or pause/bed/load/disable interrupted it
 autosaveState.End(true);
 Check(autosaveState.BlocksBusySave(true), "error or gameplay boundary clears permission even before save returns");
-foreach (float native in new[] { 0f, 1f, 16f })
+foreach (float native in new[] { 0f, 1f, 16f, 32f })
 {
     var interrupted = new SpeedOwnership();
     interrupted.TryCycle(1f, 8);
@@ -421,8 +421,38 @@ static class ConfigurationChecks
             check(index > previousIndex, "generated config has ordered " + entry.Trim());
             previousIndex = index;
         }
-        check(generated.Contains("# Acceptable values: 2, 4, 8") && generated.Contains("# Acceptable values: 1, 2, 4, 8"),
+        check(generated.Contains("# Acceptable values: 2, 4, 8, 16, 32") && generated.Contains("# Acceptable values: 1, 2, 4, 8, 16, 32"),
             "real serializer documents both supported speed limits");
+        check(generated.Contains("32 adds no lower limit.") && !generated.Contains("8 adds no lower limit."),
+            "generated activity-limit help describes the new highest supported speed");
+
+        foreach (int maximum in new[] { 16, 32 })
+        foreach (int heldSpeed in new[] { 16, 32 })
+        foreach (int activity in new[] { 8, 16, 32 })
+        {
+            string higherPath = Path.Combine(scratch, $"higher-speeds-{maximum}-{heldSpeed}-{activity}.cfg");
+            File.WriteAllText(higherPath, $"[Simulation]\nMaxSpeed = {maximum}\nHoldSpeed = {heldSpeed}\nMovementInventoryMaxSpeed = {activity}\n" +
+                "[Controls]\nHotkey = F6 + LeftControl\n[Display]\nShowIndicator = false\n[OtherOwner]\nPreserved = untouched\n");
+            var higherFile = new ConfigFile(higherPath, false);
+            var higher = new PluginSettings(higherFile);
+            check(higher.MaxSpeed.Value == maximum && higher.HoldSpeed.Value == heldSpeed &&
+                higher.MovementInventoryMaxSpeed.Value == activity, "real loader binds independent higher speeds and existing activity cap " + activity);
+            higherFile.Save();
+            higherFile.SaveOnConfigSet = false;
+            higher.MaxSpeed.Value = 4;
+            higher.HoldSpeed.Value = 4;
+            higher.MovementInventoryMaxSpeed.Value = 2;
+            // Reload the previously saved values, without automatic setting writes.
+            higherFile.Reload();
+            higherFile.Save();
+            var rebound = new PluginSettings(new ConfigFile(higherPath, false));
+            check(higher.MaxSpeed.Value == maximum && higher.HoldSpeed.Value == heldSpeed &&
+                higher.MovementInventoryMaxSpeed.Value == activity && rebound.MaxSpeed.Value == maximum &&
+                rebound.HoldSpeed.Value == heldSpeed && rebound.MovementInventoryMaxSpeed.Value == activity,
+                $"real loader reload/save/rebind preserves cycle {maximum} hold {heldSpeed} activity {activity}");
+            check(rebound.Hotkey.Value.Equals(new KeyboardShortcut(KeyCode.F6, KeyCode.LeftControl)) && !rebound.ShowIndicator.Value &&
+                File.ReadAllText(higherPath).Contains("Preserved = untouched"), "higher-speed config round trip preserves unrelated settings");
+        }
 
         string independentPath = Path.Combine(scratch, "independent-cycle-hold.cfg");
         File.WriteAllText(independentPath, "[Simulation]\nMaxSpeed = 4\nHoldSpeed = 8\nMovementInventoryMaxSpeed = 2\n");

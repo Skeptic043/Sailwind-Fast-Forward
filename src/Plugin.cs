@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 
 namespace SailwindFastForward
 {
-    [BepInPlugin(Id, "Sailwind Fast Forward", "1.2.0")]
+    [BepInPlugin(Id, "Sailwind Fast Forward", "1.2.1")]
     [BepInProcess("Sailwind.exe")]
     public sealed class Plugin : BaseUnityPlugin
     {
@@ -138,6 +138,7 @@ namespace SailwindFastForward
 
         private static string HardBlockReason()
         {
+            if (HoldPolicy.NativeSleepOwnsSpeed(GameState.sleeping, GameState.eyesFullyClosed)) return "native sleep";
             if (!GameState.playing) return "outside gameplay";
             if (GameState.currentlyLoading) return "save loading";
             if (GameState.justStarted || GameState.changingStartRegion) return "world transition";
@@ -243,7 +244,8 @@ namespace SailwindFastForward
             autosave?.Reset();
             if (!speed.Active) return;
             float previous = Time.timeScale;
-            if (speed.Release(previous)) Time.timeScale = 1f;
+            if (speed.Release(previous, HoldPolicy.NativeSleepOwnsSpeed(GameState.sleeping, GameState.eyesFullyClosed)))
+                Time.timeScale = 1f;
             background.Restore();
             Logger.LogInfo($"Fast-forward off ({reason}). Scale {previous} -> {Time.timeScale}.");
             LogNeeds();

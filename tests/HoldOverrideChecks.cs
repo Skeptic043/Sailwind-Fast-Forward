@@ -8,9 +8,46 @@ internal static class HoldOverrideChecks
 {
     internal static void Run(Action<bool, string> check)
     {
-        foreach (int requested in new[] { 2, 4, 8 })
-        foreach (int maximum in new[] { 2, 4, 8 })
-        foreach (int activity in new[] { 1, 2, 4, 8 })
+        foreach (bool sleeping in new[] { false, true })
+        foreach (bool eyesClosed in new[] { false, true })
+            check(HoldPolicy.NativeSleepOwnsSpeed(sleeping, eyesClosed) == (sleeping && eyesClosed),
+                $"native sleep ownership requires sleep and completed fade: {sleeping}/{eyesClosed}");
+        foreach (int requested in new[] { 16, 32 })
+        foreach (int nativeSpeed in new[] { 16, 32 })
+        foreach (string ending in new[] { "update", "reset", "release", "disable", "save-error" })
+        {
+            var sleep = new Frames { Requested = requested, Maximum = 4 };
+            sleep.Keys.Add(KeyCode.F9); sleep.Down.Add(KeyCode.F9);
+            check(sleep.Step() == SpeedInputAction.Hold && sleep.Scale == requested,
+                "higher hold starts before sleep fade");
+            sleep.Down.Clear();
+            sleep.Sleeping = true;
+            check(sleep.Step() == SpeedInputAction.None && sleep.Scale == requested,
+                "hold continues during sleep fade before native warp takes ownership");
+            sleep.EyesClosed = true;
+            sleep.Scale = nativeSpeed;
+            check(!sleep.BeginManualSave(), "native sleep cannot qualify for held save continuation");
+            if (ending == "reset") sleep.Down.Add(KeyCode.F8);
+            if (ending == "release") sleep.Keys.Clear();
+            if (ending == "disable") sleep.Cancel("plugin disabled");
+            else if (ending == "save-error") sleep.Error(new Exception("save failed during native takeover"));
+            else sleep.Step();
+            check(sleep.Scale == nativeSpeed && !sleep.Speed.Active && !sleep.State.Active,
+                $"{ending} abandons owned {requested}x without restoring over native {nativeSpeed}x");
+            sleep.Down.Clear();
+            check(sleep.Step() != SpeedInputAction.Hold && sleep.Scale == nativeSpeed,
+                "native warp remains blocked after cancellation");
+            sleep.Sleeping = false; sleep.EyesClosed = false; sleep.Scale = 1f;
+            check(sleep.Step() == SpeedInputAction.None && sleep.Scale == 1f,
+                "wake cannot reacquire without a new physical hold press");
+            sleep.Keys.Clear(); sleep.Step();
+            sleep.Keys.Add(KeyCode.F9); sleep.Down.Add(KeyCode.F9);
+            check(sleep.Step() == SpeedInputAction.Hold && sleep.Scale == requested,
+                "release and fresh hold press rearm after native wake");
+        }
+        foreach (int requested in new[] { 2, 4, 8, 16, 32 })
+        foreach (int maximum in new[] { 2, 4, 8, 16, 32 })
+        foreach (int activity in new[] { 1, 2, 4, 8, 16, 32 })
         {
             var frame = new Frames { Requested = requested, Maximum = maximum, ActivityMaximum = activity };
             frame.Keys.UnionWith(new[] { KeyCode.F9, KeyCode.W, KeyCode.Mouse0 });
@@ -105,7 +142,7 @@ internal static class HoldOverrideChecks
                 "production hold boundary classification for " + boundary);
             check(HoldPolicy.Blocks(boundary, false), "ordinary input remains blocked by " + boundary);
         }
-        foreach (int requested in new[] { 2, 4, 8 })
+        foreach (int requested in new[] { 2, 4, 8, 16, 32 })
         foreach (string ending in new[] { "release", "reset", "pause", "loading", "external", "early-error", "late-error" })
         {
             var manual = new Frames { Requested = requested, ActivityMaximum = 1, Maximum = 4 };
@@ -128,7 +165,8 @@ internal static class HoldOverrideChecks
             if (ending == "reset") manual.Down.Add(KeyCode.F8);
             if (ending == "pause") manual.Boundary = HoldBoundary.Pause;
             if (ending == "loading") manual.Boundary = HoldBoundary.Loading;
-            if (ending == "external") manual.Scale = 16f;
+            float externalScale = requested == 16 ? 32f : 16f;
+            if (ending == "external") manual.Scale = externalScale;
             if (ending == "late-error")
             {
                 var error = new Exception("manual coroutine failure");
@@ -138,7 +176,7 @@ internal static class HoldOverrideChecks
             manual.Step();
             check(!manual.State.Active && !manual.Speed.Active,
                 ending + " cancels hold and manual-save ownership");
-            if (ending == "external") check(manual.Scale == 16f, "manual-save hold never restores native/external scale");
+            if (ending == "external") check(manual.Scale == externalScale, "manual-save hold never restores native/external scale");
             manual.Busy = false; manual.Boundary = null; manual.Down.Clear(); manual.Scale = 1f;
             check(manual.Step() == SpeedInputAction.None && manual.Scale == 1f,
                 "manual save completion cannot reacquire a cancelled hold");
@@ -159,12 +197,14 @@ internal static class HoldOverrideChecks
         internal int Requested = 4, Maximum = 8, ActivityMaximum = 2;
         internal string Blocked;
         internal HoldBoundary? Boundary;
-        internal bool Focused = true, Busy;
+        internal bool Focused = true, Busy, Sleeping, EyesClosed;
+        private bool NativeSleep => HoldPolicy.NativeSleepOwnsSpeed(Sleeping, EyesClosed);
 
         internal SpeedInputAction Step()
         {
             bool intent = State.HasIntent(Scale, Speed.SelectedSpeed, Focused, Binding, Down.Contains, Keys.Contains);
             string blocked = Blocked ?? (Boundary.HasValue && HoldPolicy.Blocks(Boundary.Value, intent) ? Boundary.ToString() : null);
+            if (NativeSleep) blocked = "native sleep";
             if (Save.BlocksBusySave(Busy, false, Eligible())) blocked = blocked ?? "save busy";
             var action = State.Dispatch(Speed, Scale, Maximum, ActivityMaximum, Math.Min(Maximum, ActivityMaximum),
                 Focused, blocked, new KeyboardShortcut(KeyCode.F7), new KeyboardShortcut(KeyCode.F8), Binding, Requested,
@@ -174,11 +214,11 @@ internal static class HoldOverrideChecks
             return action;
         }
 
-        private void Cancel(string reason)
+        internal void Cancel(string reason)
         {
             State.Invalidate();
             Save.Reset();
-            if (Speed.Release(Scale)) Scale = 1f;
+            if (Speed.Release(Scale, NativeSleep)) Scale = 1f;
         }
 
         internal bool BeginManualSave() => Save.TryEnterSave(Eligible(), Busy);
@@ -186,6 +226,6 @@ internal static class HoldOverrideChecks
 
         private bool Eligible() => HoldPolicy.CanContinue(State, Speed, Scale,
             HotkeyInput.IsHeld(Binding.MainKey, Binding.Modifiers, Keys.Contains),
-            Boundary.HasValue && HoldPolicy.Blocks(Boundary.Value, true));
+            NativeSleep || (Boundary.HasValue && HoldPolicy.Blocks(Boundary.Value, true)));
     }
 }

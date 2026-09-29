@@ -43,13 +43,13 @@ namespace SailwindFastForward
 
             MaxSpeed = config.Bind("Simulation", "MaxSpeed", 4,
                 new ConfigDescription("Maximum fast-forward speed for cycling. HoldSpeed is independent of this limit.",
-                    new AcceptableValueList<int>(2, 4, 8)));
+                    new AcceptableValueList<int>(2, 4, 8, 16, 32)));
             HoldSpeed = config.Bind("Simulation", "HoldSpeed", 4,
                 new ConfigDescription("Fast-forward speed while holding HoldHotkey, independent of MaxSpeed. Holding ignores movement and inventory limits.",
-                    new AcceptableValueList<int>(2, 4, 8)));
+                    new AcceptableValueList<int>(2, 4, 8, 16, 32)));
             MovementInventoryMaxSpeed = config.Bind("Simulation", "MovementInventoryMaxSpeed", 2,
-                new ConfigDescription("Cycle-mode speed limit while moving or viewing inventory, also bounded by MaxSpeed. Holding ignores this limit. 1 turns cycle-mode fast-forward off. 8 adds no lower limit. Ending the activity does not raise speed automatically.",
-                    new AcceptableValueList<int>(1, 2, 4, 8)));
+                new ConfigDescription("Cycle-mode speed limit while moving or viewing inventory, also bounded by MaxSpeed. Holding ignores this limit. 1 turns cycle-mode fast-forward off. 32 adds no lower limit. Ending the activity does not raise speed automatically.",
+                    new AcceptableValueList<int>(1, 2, 4, 8, 16, 32)));
             CancelOnAutosave = config.Bind("Simulation", "CancelOnAutosave", false,
                 "Turn off fast-forward when an autosave starts, including while holding. When disabled, active fast-forward continues during autosaves. Loading always cancels fast-forward. Manual saves cancel cycle mode but allow an active hold to continue.");
         }

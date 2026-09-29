@@ -1,6 +1,8 @@
 # Sailwind Fast Forward
 
-Spend less time waiting on long voyages. Sail at 2x, 4x, or 8x speed, with food, water and rest progressing alongside game time.
+Spend less time waiting on long voyages. Sail at 2x, 4x, 8x, 16x or 32x speed, with food, water and rest progressing alongside game time.
+
+WARNING: 16x and 32x speeds are HIGHLY unstable, use at your own discretion.
 
 ## Installation
 
@@ -18,7 +20,7 @@ Install [Sailwind Fast Forward](https://thunderstore.io/c/sailwind/p/Skeptic043/
 
 | Default shortcut | Action |
 | --- | --- |
-| `F7` | Cycle through 1x → 2x → 4x → 1x. Set `MaxSpeed` to `8` to include 8x. |
+| `F7` | Cycle through 1x → 2x → 4x → 1x. Set `MaxSpeed` to `8`, `16` or `32` to include higher speeds. |
 | `F8` | Turn fast-forward off and return directly to 1x. |
 | Hold `F9` | Fast-forward at `HoldSpeed`, 4x by default. Release to return to 1x. |
 
@@ -36,9 +38,9 @@ Settings can be changed in-game with [BepInEx Configuration Manager](https://git
 | Display | `ShowIndicator` | `true` | Show or hide the speed indicator. |
 | Display | `IndicatorScale` | `1` | Indicator size from `0.5` to `5` in `0.5` steps. `1` keeps the original size. |
 | Display | `IndicatorBackground` | `Simple` | Plain box, Sailwind style scroll, or text only. |
-| Simulation | `MaxSpeed` | `4` | Highest speed in cycle mode. |
-| Simulation | `HoldSpeed` | `4` | Speed while holding the shortcut. Independent of `MaxSpeed`. |
-| Simulation | `MovementInventoryMaxSpeed` | `2` | Cycle-mode speed limit while moving or viewing inventory/stats. Does not limit hold mode. |
+| Simulation | `MaxSpeed` | `4` | Highest speed in cycle mode. Choose `2`, `4`, `8`, `16` or `32`. |
+| Simulation | `HoldSpeed` | `4` | Speed while holding the shortcut. Choose `2`, `4`, `8`, `16` or `32`, independently of `MaxSpeed`. |
+| Simulation | `MovementInventoryMaxSpeed` | `2` | Cycle-mode speed limit while moving or viewing inventory/stats. Choose `1`, `2`, `4`, `8`, `16` or `32`. Does not limit hold mode. |
 | Simulation | `CancelOnAutosave` | `false` | Cancel both cycle and hold fast-forward when an autosave starts. |
 
 ### Shortcuts

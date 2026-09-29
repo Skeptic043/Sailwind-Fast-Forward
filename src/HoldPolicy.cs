@@ -4,6 +4,9 @@ namespace SailwindFastForward
 
     internal static class HoldPolicy
     {
+        // StartSleepTimeWarp closes the eyes after taking ownership of timeScale.
+        internal static bool NativeSleepOwnsSpeed(bool sleeping, bool eyesFullyClosed) => sleeping && eyesFullyClosed;
+
         internal static bool CanContinue(HoldInput hold, SpeedOwnership speed, float current,
             bool chordHeld, bool hardBlocked) =>
             !hardBlocked && hold.Active && speed.Active && current == speed.SelectedSpeed && chordHeld;

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+### New
+- Added 16x and 32x options for cycle speed, hold speed and the movement/inventory speed limit. Existing settings and defaults are unchanged. WARNING: 16x and 32x speeds are HIGHLY unstable, use at your own discretion.
+
 ## 1.2.0
 
 ### New
