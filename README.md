@@ -4,16 +4,16 @@ Spend less time waiting on long voyages. Sail at 2x, 4x, 8x, 16x or 32x speed, w
 
 WARNING: 16x and 32x speeds are HIGHLY unstable, use at your own discretion.
 
-## Installation
+## Install
 
 ### Mod managers
 
-Install [Sailwind Fast Forward](https://thunderstore.io/c/sailwind/p/Skeptic043/Sailwind_Fast_Forward/) through r2modman or Thunderstore Mod Manager, then launch the game modded through your manager. Dependencies are installed automatically.
+Install Sailwind Fast Forward through [Sailwind Mod Synchronizer](https://github.com/foxyv/SailwindModSynchronizer/releases/latest), r2modman or Thunderstore Mod Manager, then launch Sailwind through your manager. Dependencies are installed automatically.
 
 ### Manual installation
 
 1. Install [BepInEx 5](https://github.com/BepInEx/BepInEx/releases) in your Sailwind game folder, following its installation instructions.
-2. Download and extract the mod ZIP. Copy its `plugins/SailwindFastForward` folder into `BepInEx/plugins` in your Sailwind folder.
+2. Download and extract the [Sailwind Fast Forward ZIP](https://github.com/Skeptic043/Sailwind-Fast-Forward/releases/latest). Copy its `BepInEx/plugins/SailwindFastForward` folder into `BepInEx/plugins` in your Sailwind folder.
 3. Launch Sailwind normally.
 
 ## Controls
@@ -28,7 +28,7 @@ All three shortcuts are configurable and work while holding sailing controls. Re
 
 ## Configuration
 
-Settings can be changed in-game with [BepInEx Configuration Manager](https://github.com/BepInEx/BepInEx.ConfigurationManager). For manual editing, `BepInEx/config/local.sailwind.fastforward.cfg` is generated after the first launch inside your mod manager profile or Sailwind folder.
+Settings are in `BepInEx/config/local.sailwind.fastforward.cfg` after the first launch, or in game with the BepInEx 5 version of [BepInEx Configuration Manager](https://github.com/BepInEx/BepInEx.ConfigurationManager).
 
 | Section | Setting | Default | Description |
 | --- | --- | --- | --- |
@@ -49,7 +49,7 @@ Key names ignore capitalization and accept spaces. `LeftShift + Mouse4`, `left s
 
 ## Compatibility
 
-Tested on Sailwind patch 0.39 with BepInEx 5.4.23. No known incompatibilities.
+No known incompatibilities.
 
 ## Known issues
 
@@ -58,10 +58,8 @@ Tested on Sailwind patch 0.39 with BepInEx 5.4.23. No known incompatibilities.
 
 ## AI Use
 
-AI was used to write all of the code in this project. The original design direction, testing, debugging, and release decisions are my own. If you prefer not to use mods developed with AI assistance, I understand and respect that choice.
+AI was used to write all of the code in this project. The original concept, design direction, testing, debugging, and release decisions are my own. If you prefer not to use mods developed with AI assistance, I understand and respect that choice.
 
-## Links and support
+## Links
 
-[Report an issue](https://github.com/Skeptic043/Sailwind-Fast-Forward/issues) with your settings and `BepInEx/LogOutput.log`.
-
-[Source code](https://github.com/Skeptic043/Sailwind-Fast-Forward) · [Changelog](https://github.com/Skeptic043/Sailwind-Fast-Forward/blob/main/CHANGELOG.md) · [Build instructions](https://github.com/Skeptic043/Sailwind-Fast-Forward/blob/main/docs/BUILDING.md) · [MIT License](https://github.com/Skeptic043/Sailwind-Fast-Forward/blob/main/LICENSE) · [Support on Ko-fi](https://ko-fi.com/skeptic043) · skeptic043
+[Report an issue](https://github.com/Skeptic043/Sailwind-Fast-Forward/issues) · [Source code](https://github.com/Skeptic043/Sailwind-Fast-Forward) · [Release notes](https://github.com/Skeptic043/Sailwind-Fast-Forward/blob/main/CHANGELOG.md) · [Build instructions](https://github.com/Skeptic043/Sailwind-Fast-Forward/blob/main/BUILDING.md) · [License](https://github.com/Skeptic043/Sailwind-Fast-Forward/blob/main/LICENSE) · [Support on Ko-fi](https://ko-fi.com/skeptic043) · skeptic043

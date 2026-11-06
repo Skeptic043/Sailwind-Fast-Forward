@@ -22,9 +22,6 @@ foreach ($dependency in $manifest.dependencies) {
         throw "Invalid dependency: $dependency"
     }
 }
-$pluginSource = Get-Content -LiteralPath "$PSScriptRoot\src\Plugin.cs" -Raw
-$pluginVersion = [regex]::Match($pluginSource, '\[BepInPlugin\(Id, "Sailwind Fast Forward", "([^"]+)"\)\]').Groups[1].Value
-if ($pluginVersion -ne $version) { throw 'BepInPlugin version differs from manifest.' }
 $icon = [Drawing.Image]::FromFile("$PSScriptRoot\icon.png")
 try {
     if ($icon.Width -ne 256 -or $icon.Height -ne 256 -or
@@ -35,27 +32,11 @@ try {
 
 # Explicit lists prevent accidental redistribution of local references or research.
 $releaseFiles = [ordered]@{}
-foreach ($path in @('manifest.json', 'README.md', 'CHANGELOG.md', 'LICENSE', 'icon.png',
-    'docs/BUILDING.md')) {
+foreach ($path in @('manifest.json', 'README.md', 'CHANGELOG.md', 'LICENSE', 'icon.png')) {
     $releaseFiles[$path] = Join-Path $PSScriptRoot $path
 }
-$releaseFiles['plugins/SailwindFastForward/SailwindFastForward.dll'] =
+$releaseFiles['BepInEx/plugins/SailwindFastForward/SailwindFastForward.dll'] =
     "$PSScriptRoot\artifacts\build\$version\SailwindFastForward.dll"
-$sourceFiles = [ordered]@{}
-foreach ($path in @('.gitignore', '.gitattributes', 'manifest.json', 'README.md', 'CHANGELOG.md',
-    'LICENSE', 'icon.png', 'assets/icon.svg', 'tools/Render-Icon.ps1', 'Build.ps1', 'Package.ps1',
-    'Directory.Build.props', 'docs/BUILDING.md',
-    'src/AutosaveState.cs', 'src/AutosavePatch.cs', 'src/SaveErrorBoundary.cs', 'src/SaveContinuation.cs', 'src/SaveCoroutine.cs', 'src/Plugin.cs', 'src/PluginSettings.cs', 'src/SpeedOwnership.cs', 'src/HotkeyInput.cs', 'src/HoldInput.cs', 'src/BackgroundExecution.cs',
-    'src/ShortcutParser.cs', 'src/ShortcutSetting.cs', 'src/HoldPolicy.cs', 'src/SpeedIndicator.cs', 'src/IndicatorScaleRange.cs', 'src/ConfigurationManagerWindow.cs',
-    'src/SailwindFastForward.csproj', 'tests/Program.cs', 'tests/HoldChecks.cs', 'tests/HoldOverrideChecks.cs', 'tests/ShortcutChecks.cs', 'tests/IndicatorSettingsChecks.cs', 'tests/ConfigurationManagerChecks.cs', 'tests/AutosaveChecks.cs', 'tests/HarmonyNormalizationChecks.cs', 'tests/CompatibilityChecks.cs', 'tests/OwnershipChecks.csproj')) {
-    $sourceFiles[$path] = Join-Path $PSScriptRoot $path
-}
-$utf8 = [Text.UTF8Encoding]::new($false, $true)
-foreach ($path in $sourceFiles.Values) {
-    if ([IO.Path]::GetExtension($path) -ne '.png') {
-        $null = $utf8.GetString([IO.File]::ReadAllBytes($path))
-    }
-}
 
 function Write-VerifiedZip($Destination, $Files) {
     $temporary = "$Destination.$([Guid]::NewGuid().ToString('N')).tmp"
@@ -91,12 +72,5 @@ function Write-VerifiedZip($Destination, $Files) {
 
 $outputDir = Join-Path $PSScriptRoot 'artifacts\release'
 New-Item -ItemType Directory -Force $outputDir | Out-Null
-$releaseZip = Join-Path $outputDir "$($manifest.name)-$version.zip"
-$sourceZip = Join-Path $outputDir "$($manifest.name)-$version-source.zip"
+$releaseZip = Join-Path $outputDir "SailwindFastForward-$version.zip"
 Write-VerifiedZip $releaseZip $releaseFiles
-Write-VerifiedZip $sourceZip $sourceFiles
-$checksums = foreach ($path in @($releaseZip, $sourceZip)) {
-    "$( (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash )  $([IO.Path]::GetFileName($path))"
-}
-[IO.File]::WriteAllLines((Join-Path $outputDir "SHA256SUMS-$version.txt"), [string[]]$checksums, $utf8)
-$checksums
